@@ -1750,10 +1750,7 @@
     "lon": -1.9273838,
     "lat": 52.4491543,
     "website": "https://www.jdwetherspoon.com/pubs/joes-bar-birmingham/",
-    "menu": "NONE",
-    "jdwId": 23023,
-    "imgUrl": "https://d2s8km3brsjp0y.cloudfront.net/eyJidWNrZXQiOiJ3aGF0cHViIiwia2V5IjoiQklSXC9CSVIrMzg0My0xNzQ0Nzg0LTIwNDgtMTUzNi5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsid2lkdGgiOjgwMCwiaGVpZ2h0Ijo2MDAsImZpdCI6ImNvdmVyIn0sInJvdGF0ZSI6bnVsbH19",
-    "imgType": "jpg"
+    "menu": "NONE"
   },
   {
     "id": 2088624694,
@@ -3424,7 +3421,7 @@
     "postcode": "SE1 7BH",
     "lon": -0.1150963,
     "lat": 51.5028376,
-    "website": "https://www.jdwetherspoon.com/pubs/the-lion-the-unicorn-london/",
+    "website": "https://www.jdwetherspoon.com/pubs/the-lion-the-unicorn-waterloo/",
     "menu": "https://order.jdwetherspoon.com/venue/jdw/7650/menus"
   },
   {
@@ -3716,16 +3713,6 @@
     "lat": 50.7195973,
     "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/dorset/the-moon-in-the-square-bournemouth",
     "menu": "https://order.jdwetherspoon.com/venue/jdw/164/menus"
-  },
-  {
-    "id": 65382138,
-    "name": "The Kentish Drovers",
-    "city": "London",
-    "postcode": "SE15 5RS",
-    "lon": -0.0700553,
-    "lat": 51.4737059,
-    "website": "https://www.jdwetherspoon.com/pubs/all-pubs/england/london/the-kentish-drovers-peckham",
-    "menu": "https://order.jdwetherspoon.com/venue/jdw/638/menus"
   },
   {
     "id": 68456916,
@@ -6629,7 +6616,7 @@
     "postcode": "HD6 1JN",
     "lon": -1.7799182,
     "lat": 53.7015689,
-    "website": "http://www.jdwetherspoon.co.uk/home/pubs/the-richard-oastler",
+    "website": "https://www.jdwetherspoon.com/pubs/the-richard-oastler-brighouse/",
     "menu": "https://order.jdwetherspoon.com/venue/jdw/937/menus"
   },
   {

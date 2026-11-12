@@ -58,27 +58,37 @@ function loadRegionMap() {
 // a mapper redraws the pub.
 function buildScrapeCache(previousSpoons) {
   const cache = new Map();
+  // What the last run knew about each pub, by website and by OSM id (in case
+  // the website has since been corrected). With --refresh this isn't reused
+  // up front, but it is still the fallback when a page can't be read.
+  const previousByWebsite = new Map();
+  const previousById = new Map();
+
+  for (const pub of previousSpoons) {
+    const details = { history: null, image: null };
+    if (pub.history && pub.history !== 'NONE') {
+      details.history = pub.history;
+    }
+    // Overrides from images.json and missing_history.json are cached along
+    // with scraped details. While an override exists it wins anyway; once it
+    // is removed, its image and history keep being reused until a run with
+    // --refresh fetches the pub's page again.
+    if (hasPubImage(pub)) {
+      details.image = {
+        jdwId: pub.jdwId,
+        imgUrl: pub.imgUrl,
+        imgType: pub.imgType,
+      };
+    }
+    previousById.set(pub.id, details);
+    if (isScrapable(pub.website)) {
+      previousByWebsite.set(pub.website, details);
+    }
+  }
 
   if (!REFRESH) {
-    for (const pub of previousSpoons) {
-      if (!isScrapable(pub.website)) continue;
-
-      const details = { history: null, image: null };
-      if (pub.history && pub.history !== 'NONE') {
-        details.history = pub.history;
-      }
-      // Overrides from images.json and missing_history.json are cached along
-      // with scraped details. While an override exists it wins anyway; once it
-      // is removed, its image and history keep being reused until a run with
-      // --refresh fetches the pub's page again.
-      if (hasPubImage(pub)) {
-        details.image = {
-          jdwId: pub.jdwId,
-          imgUrl: pub.imgUrl,
-          imgType: pub.imgType,
-        };
-      }
-      cache.set(pub.website, details);
+    for (const [website, details] of previousByWebsite) {
+      cache.set(website, details);
     }
     console.log(`Reusing scraped details for ${cache.size} pub pages from ${SPOONS_OUT}`);
   }
@@ -92,7 +102,9 @@ function buildScrapeCache(previousSpoons) {
     console.log(`Resuming an interrupted run: ${resumed.length} pages already scraped`);
   }
 
-  return { cache, progress };
+  const getPrevious = (pub) =>
+    previousByWebsite.get(pub.website) ?? previousById.get(pub.id) ?? null;
+  return { cache, progress, getPrevious };
 }
 
 function isScrapable(website) {
@@ -122,7 +134,7 @@ const pause = () =>
   new Promise((resolve) => setTimeout(resolve, SCRAPE_DELAY_MS));
 
 async function enrichSpoons(spoons, regionMap, previousSpoons) {
-  const { cache, progress } = buildScrapeCache(previousSpoons);
+  const { cache, progress, getPrevious } = buildScrapeCache(previousSpoons);
   const previousImgUrls = new Map(
     previousSpoons
       .filter((pub) => pub.jdwId)
@@ -138,6 +150,7 @@ async function enrichSpoons(spoons, regionMap, previousSpoons) {
   const missingHistory = [];
   const missingImage = [];
   const missingJdwId = [];
+  const keptPrevious = [];
   const enriched = [];
 
   for (const pub of spoons) {
@@ -177,6 +190,20 @@ async function enrichSpoons(spoons, regionMap, previousSpoons) {
         cache.set(updatedPub.website, scraped);
         progress[updatedPub.website] = scraped;
         saveProgress(progress);
+      }
+
+      // The page failed or no longer has the details (it may be a one-off
+      // error, a moved page or a closed pub): keep what the last run had
+      // rather than losing it, and say so
+      const previous = getPrevious(updatedPub);
+      const fillHistory = !scraped.history && previous?.history;
+      const fillImage = !hasPubImage(scraped.image) && hasPubImage(previous?.image);
+      if (fillHistory || fillImage) {
+        scraped = {
+          history: scraped.history ?? previous.history,
+          image: hasPubImage(scraped.image) ? scraped.image : previous.image,
+        };
+        keptPrevious.push(`${updatedPub.name} (${updatedPub.id}): ${updatedPub.website}`);
       }
     } else {
       reusedCount++;
@@ -266,6 +293,10 @@ async function enrichSpoons(spoons, regionMap, previousSpoons) {
   }
 
   console.log(`Reused ${reusedCount} pubs, scraped ${scrapedCount} pages, downloaded ${downloadedCount} images, resized ${optimisedCount} images.`);
+  if (keptPrevious.length) {
+    console.log('⚠️  Page gave no details, so kept those from the last run. Check whether the pub has moved page (fix in websites.json) or closed (add to dead_spoons.json):');
+    keptPrevious.forEach((m) => console.log(' -', m));
+  }
   if (missingJdwId.length) {
     console.log('⚠️  No Wetherspoon id, so the app cannot record visits (correct the URL in websites.json, or add a jdwId in images.json):');
     missingJdwId.forEach((m) => console.log(' -', m));
@@ -282,21 +313,27 @@ async function enrichSpoons(spoons, regionMap, previousSpoons) {
   return enriched;
 }
 
-// Lists the pubs that joined or left the dataset since the last run. Pubs are
-// matched on their Wetherspoon id, so one that was merely redrawn in OSM (and
-// got a new OSM id) is reported as re-mapped rather than removed and added.
+// Lists the pubs that joined or left the dataset since the last run. A pub
+// counts as the same if either its Wetherspoon id or its OSM id matches, so
+// one that was redrawn in OSM (new OSM id) is reported as re-mapped, and one
+// that gained or lost its Wetherspoon id isn't reported at all.
 function reportChanges(previousSpoons, enriched) {
   const describe = (pub) => `${pub.name}, ${pub.city} (${pub.id})`;
-  const pubKey = (pub) => (pub.jdwId ? `jdw:${pub.jdwId}` : `osm:${pub.id}`);
-  const previousByKey = new Map(previousSpoons.map((pub) => [pubKey(pub), pub]));
-  const currentKeys = new Set(enriched.map(pubKey));
-  const added = enriched.filter((pub) => !previousByKey.has(pubKey(pub)));
-  const removed = previousSpoons.filter((pub) => !currentKeys.has(pubKey(pub)));
+  const index = (pubs) => ({
+    byJdwId: new Map(pubs.filter((pub) => pub.jdwId).map((pub) => [pub.jdwId, pub])),
+    byId: new Map(pubs.map((pub) => [pub.id, pub])),
+  });
+  const findIn = ({ byJdwId, byId }, pub) =>
+    (pub.jdwId && byJdwId.get(pub.jdwId)) || byId.get(pub.id);
+  const previousIndex = index(previousSpoons);
+  const currentIndex = index(enriched);
+
+  const added = enriched.filter((pub) => !findIn(previousIndex, pub));
+  const removed = previousSpoons.filter((pub) => !findIn(currentIndex, pub));
   const remapped = enriched.filter((pub) => {
-    const previous = previousByKey.get(pubKey(pub));
+    const previous = findIn(previousIndex, pub);
     return previous && previous.id !== pub.id;
   });
-
   if (added.length) {
     console.log(`Added since the last run (${added.length}):`);
     added.forEach((pub) => console.log(' +', describe(pub)));
@@ -308,7 +345,7 @@ function reportChanges(previousSpoons, enriched) {
   if (remapped.length) {
     console.log(`New OSM id since the last run (${remapped.length}):`);
     remapped.forEach((pub) =>
-      console.log(' ~', `${describe(pub)}, was ${previousByKey.get(pubKey(pub)).id}`),
+      console.log(' ~', `${describe(pub)}, was ${findIn(previousIndex, pub).id}`),
     );
   }
 }
