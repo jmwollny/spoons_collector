@@ -1,0 +1,44 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Progress of an interrupted enrich.js run
+assets/enrich_progress.json*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Too large for git (GitHub rejects files over 100 MB). Download the ONS
+# Postcode Directory CSV separately before running enrich.js.
+assets/*.csv
+
+# Content copied from the Wetherspoon website (pub photos and history text).
+# Its terms don't allow republishing it, so each copy of the project builds
+# its own with the data pipeline: see REGENERATING_DATA.md.
+assets/spoons_enriched.json
+public/images/
+
+# Full-size pub photos (~390 MB). enrich.js re-downloads any that are missing;
+# the resized copies the app serves are in public/images and are committed.
+assets/images_original/
+
+# Local backups of earlier datasets and unused photos
+archived/

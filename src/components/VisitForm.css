@@ -1,0 +1,29 @@
+.visit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.visit-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.visit-form input,
+.visit-form select,
+.visit-form button {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+}
+
+.visit-form button {
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  border: none;
+  cursor: pointer;
+}

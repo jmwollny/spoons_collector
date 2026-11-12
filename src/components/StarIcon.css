@@ -1,0 +1,37 @@
+.star {
+  cursor: pointer;
+  stroke: darkgoldenrod;
+  stroke-width: 12px;
+  transform-origin: 256px 256px; /* center of the 512x512 viewBox */
+  transition:
+    fill 0.25s ease,
+    stroke 0.25s ease;
+}
+
+.star.aria-disabled {
+  cursor: auto;
+  pointer-events: none;
+}
+
+.unrated {
+  fill: transparent;
+  transition:
+    fill 0.5s ease,
+    stroke 0.25s ease;
+}
+.rated {
+  fill: gold;
+  animation: star-spin 0.5s ease-in-out;
+}
+
+@keyframes star-spin {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    transform: rotate(180deg) scale(0.75);
+  }
+  100% {
+    transform: rotate(360deg) scale(1);
+  }
+}

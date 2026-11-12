@@ -1,0 +1,92 @@
+/* Gallery Layout Structure */
+.collection-toolbar {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.collection-search,
+.collection-filter {
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+}
+
+.collection-search {
+  flex: 1 1 220px;
+}
+
+.collection-filter {
+  flex: 0 1 160px;
+}
+
+.visits-cards-grid {
+  flex: 1;
+  display: grid;
+  overflow: auto;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+  max-height: 720px;
+  padding-right: 8px;
+}
+
+/* Custom scrollbar styling for a premium feel */
+.visits-cards-grid::-webkit-scrollbar {
+  width: 6px;
+}
+
+.visits-cards-grid::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.visits-cards-grid::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.visits-cards-grid::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Responsive Adaptive Fallback for Tablets/Phones */
+@media (max-width: 1024px) {
+  .visits-cards-grid {
+    max-height: 450px;
+    /* Limits scale down constraints on standard screens */
+  }
+}
+
+.gallery-card-wrapper {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  /* Prevents flex/grid children from stretching past their limits */
+  box-sizing: border-box;
+  padding: 0.5rem;
+  /* transition: transform 0.2s ease; */
+}
+
+.visits-card-button {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+
+.visits-card-button:hover {
+  transform: scale(0.98);
+  transition: transform 0.2s ease;
+}
+
+
+.visits-card-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 4px;
+  border-radius: 16px;
+}

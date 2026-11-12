@@ -1,0 +1,13 @@
+.map-shell {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #dbeafe;
+  background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 100%);
+}
+
+.leaflet-map {
+  height: 500px;
+  width: 100%;
+  z-index: 1;
+}
