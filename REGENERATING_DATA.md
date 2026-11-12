@@ -10,11 +10,6 @@ On a fresh clone, `spoons.json` and `spoons_fixed.json` are already present, so 
 
 - **Node.js 20 or later**, then `npm install`.
 - **`cwebp`**, used by step 3 to resize the photos: `brew install webp`.
-- **The ONS Postcode Directory**, used by step 3 to work out each pub's region. It is too large for git (about 800 MB), so download it yourself from the [ONS Open Geography Portal](https://geoportal.statistics.gov.uk/) (search for "ONS Postcode Directory"). Either works:
-  - the *Online ONS Postcode Directory (Live)*, downloaded as CSV;
-  - the latest quarterly *ONS Postcode Directory (ONSPD)* zip. Use the CSV in its `Data` folder (e.g. `ONSPD_NOV_2026_UK.csv`).
-
-  Put the CSV in `./assets`. `enrich.js` finds it by name, so there is no need to rename it, and git ignores CSV files in `./assets`. A newer download replaces an older one; delete the old file so only one is there.
 
 ---
 
@@ -59,7 +54,7 @@ node enrich.js
 
 - **Input:** `./assets/spoons_fixed.json`
 - **Output:** `./assets/spoons_enriched.json` *(final production dataset)*
-- Assigns one of the 12 valid UK regions to each pub
+- Assigns one of the 12 valid UK regions to each pub, from the first half of its postcode, using `./assets/postcode_regions.json`
 - Scrapes and attaches pub history text from each pub's website URL
 - Scrapes the pub's image details and downloads the full-size photo to `./assets/images_original`
 - Saves a 600px-wide WebP copy of each photo to `./public/images`, which is what the app serves
@@ -83,3 +78,23 @@ Only pubs that are new, or whose website URL has changed, are scraped. Everythin
   ```
 
 - The run ends with a list of pubs added, removed and re-mapped in OSM since the last run, and any pubs left without a history, an image or a Wetherspoon id. A pub with no Wetherspoon id is left out of the app, because visits are recorded against that id. That usually means the pub's website URL is out of date: correct it in `websites.json`, or supply the missing piece in `missing_history.json` / `images.json`, then re-run steps 2 and 3.
+
+---
+
+## Optional — Refresh the region lookup
+
+`assets/postcode_regions.json` maps the first half of each postcode (e.g. `WF10`) to its region. It is built from the ONS Postcode Directory and committed, so you normally never touch it. Postcode areas almost never change region; the one case for a refresh is a new pub whose postcode district is new, which step 3 reports under "Unmatched postcodes".
+
+To rebuild it:
+
+1. Download the latest *ONS Postcode Directory (ONSPD)* from the [ONS Open Geography Portal](https://geoportal.statistics.gov.uk/) (search for "ONS Postcode Directory"). The zip is about 250 MB; the CSV in its `Data` folder (e.g. `ONSPD_AUG_2026_UK.csv`) is about 1.5 GB.
+2. Run:
+
+   ```bash
+   node build-regions.js path/to/ONSPD_AUG_2026_UK.csv
+   ```
+
+   Or put the CSV in `./assets` and run `node build-regions.js` with no path. Git ignores CSV files in `./assets`.
+3. Re-run step 3, then delete the CSV. Only the small lookup is needed.
+
+`build-regions.js` accepts the column names used by both the quarterly ONSPD and the *Online ONS Postcode Directory (Live)*. If a future release renames them again, it stops and names the missing column.

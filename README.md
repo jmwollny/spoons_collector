@@ -15,9 +15,7 @@ The repository holds the code and the OpenStreetMap-derived pub list, but **not*
    npm install
    ```
 
-2. **Download the ONS Postcode Directory** CSV into `./assets`. It is used to work out each pub's region. See [Before you start](REGENERATING_DATA.md#before-you-start) for where to get it.
-
-3. **Build the dataset.** The pub list from OpenStreetMap is already in the repository, so you only need the last step of the pipeline. The first run fetches every pub's page from the Wetherspoon website at one page every 10 seconds, so it takes about 2½ hours. If it is interrupted, run it again and it carries on where it stopped.
+2. **Build the dataset.** The pub list from OpenStreetMap is already in the repository, so you only need the last step of the pipeline. The first run fetches every pub's page from the Wetherspoon website at one page every 10 seconds, so it takes about 2½ hours. If it is interrupted, run it again and it carries on where it stopped.
 
    ```bash
    node enrich.js
@@ -25,7 +23,7 @@ The repository holds the code and the OpenStreetMap-derived pub list, but **not*
 
    This writes `assets/spoons_enriched.json` and the photos in `public/images`.
 
-4. **Run the app** at http://localhost:2112:
+3. **Run the app** at http://localhost:2112:
 
    ```bash
    npm run dev
@@ -55,7 +53,7 @@ A pub's rarity comes from the distance to its nearest neighbouring Wetherspoon:
 
 ### Regions
 
-Each pub is assigned one of 12 regions from its postcode: North East, North West, Yorkshire and the Humber, East Midlands, West Midlands, East of England, London, South East, South West, Wales, Scotland and Northern Ireland.
+Each pub is assigned a region from the first half of its postcode, using a lookup built from the ONS Postcode Directory (`assets/postcode_regions.json`). There are 12 regions: North East, North West, Yorkshire and the Humber, East Midlands, West Midlands, East of England, London, South East, South West, Wales, Scotland and Northern Ireland.
 
 ### Data pipeline
 
@@ -71,7 +69,7 @@ build-spoons.js ──► assets/spoons.json          raw pub list
 fix.js ◄── override files ──► assets/spoons_fixed.json
         │
         ▼
-enrich.js ◄── ONS Postcode Directory, Wetherspoon website
+enrich.js ◄── assets/postcode_regions.json, Wetherspoon website
         │
         ├──► assets/spoons_enriched.json        what the app loads
         └──► public/images/<id>.webp            pub photos
@@ -93,7 +91,7 @@ Pubs, visits and photo file names use Wetherspoon's own pub id rather than the O
 ## Data sources and licences
 
 - **Pub locations and names:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/). The files in `assets` derived from it (`spoons.json`, `spoons_fixed.json` and the override files) are shared under the same licence.
-- **Regions:** derived from the ONS Postcode Directory. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/). Contains OS data © Crown copyright and database right. Contains Royal Mail data © Royal Mail copyright and database right.
+- **Regions:** `assets/postcode_regions.json` is derived from the ONS Postcode Directory. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/). Contains OS data © Crown copyright and database right. Contains Royal Mail data © Royal Mail copyright and database right.
 - **Pub photos and history text:** © J D Wetherspoon plc. They are not included in this repository. `enrich.js` fetches them from the public Wetherspoon website for your own personal use. It identifies itself with its own user agent and waits 10 seconds between requests, as the site's `robots.txt` asks. Don't publish or redistribute the results.
 
 This is a personal hobby project. It is not affiliated with or endorsed by J D Wetherspoon plc.

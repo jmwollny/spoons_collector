@@ -1,5 +1,4 @@
 import fs from 'fs';
-import readline from 'readline';
 import scrapePub from './scrape-pub.js';
 import calculateRarity from './calc-rarity.js';
 import {
@@ -11,9 +10,9 @@ import {
 } from './get-image.js';
 
 // --- Config ---
-// The ONS Postcode Directory CSV, downloaded into ./assets (see
-// REGENERATING_DATA.md). Found by name so a newer download works as-is.
-const ONS_CSV_PATTERN = /(ONS.*Postcode.*Directory|ONSPD).*\.csv$/i;
+// Outward code → region lookup, built from the ONS Postcode Directory by
+// build-regions.js
+const REGIONS_FILE = './assets/postcode_regions.json';
 const SPOONS_IN = './assets/spoons_fixed.json';
 const SPOONS_OUT = './assets/spoons_enriched.json';
 // Pages scraped so far in the current run, so an interrupted run can resume.
@@ -25,21 +24,6 @@ const SCRAPE_DELAY_MS = 10000;
 // `node enrich.js --refresh` re-scrapes every pub instead of reusing the
 // history and image details in the previous spoons_enriched.json
 const REFRESH = process.argv.includes('--refresh');
-
-// --- RGN25CD code → region name ---
-const REGION_CODES = {
-  E12000001: 'North East',
-  E12000002: 'North West',
-  E12000003: 'Yorkshire and the Humber',
-  E12000004: 'East Midlands',
-  E12000005: 'West Midlands',
-  E12000006: 'East of England',
-  E12000007: 'London',
-  E12000008: 'South East',
-  E12000009: 'South West',
-  W99999999: 'Wales',
-  S99999999: 'Scotland',
-};
 
 function getRegion(postcode, regionMap) {
   const oc = outwardCode(postcode);
@@ -55,73 +39,19 @@ function outwardCode(postcode) {
   return postcode.trim().split(' ')[0].toUpperCase();
 }
 
-// The directory's fields never contain commas, but some releases quote them
-function splitCsvLine(line) {
-  return line.split(',').map((cell) => cell.replace(/^"|"$/g, ''));
-}
-
-function findOnsCsv() {
-  const file = fs.readdirSync('./assets').find((name) => ONS_CSV_PATTERN.test(name));
-  if (!file) {
+// --- Step 1: Load the outward code → region lookup ---
+function loadRegionMap() {
+  if (!fs.existsSync(REGIONS_FILE)) {
     throw new Error(
-      'No ONS Postcode Directory CSV found in ./assets. Download it first: see REGENERATING_DATA.md.',
+      `${REGIONS_FILE} is missing. Rebuild it with 'node build-regions.js': see REGENERATING_DATA.md.`,
     );
   }
-  return `./assets/${file}`;
-}
-
-// --- Step 1: Build outward code → region map from ONS CSV ---
-async function buildRegionMap(csvPath) {
-  const map = new Map();
-  const rl = readline.createInterface({
-    input: fs.createReadStream(csvPath),
-    crlfDelay: Infinity,
-  });
-
-  let headers = null;
-  let pcdsIdx, rgnIdx, dotermIdx;
-
-  for await (const line of rl) {
-    if (!headers) {
-      // Column names vary between releases: 'PCDS' or 'pcds', and the region
-      // column is 'RGN25CD' (year-suffixed) in the online directory but 'rgn'
-      // in the downloadable ONSPD
-      headers = splitCsvLine(line.replace(/^\uFEFF/, '')).map((h) => h.toLowerCase());
-      pcdsIdx = headers.indexOf('pcds');
-      rgnIdx = headers.findIndex((h) => /^rgn(\d{2}cd)?$/.test(h));
-      dotermIdx = headers.indexOf('doterm');
-      if (pcdsIdx === -1 || rgnIdx === -1 || dotermIdx === -1) {
-        throw new Error(
-          `${csvPath} is missing a postcode (PCDS), region (RGNxxCD) or termination date (DOTERM) column`,
-        );
-      }
-      continue;
-    }
-
-    const cols = splitCsvLine(line);
-
-    // Skip terminated postcodes
-    if (cols[dotermIdx]) continue;
-
-    const pcds = cols[pcdsIdx];
-    const rgnCode = cols[rgnIdx];
-    const region = REGION_CODES[rgnCode];
-
-    if (pcds && region) {
-      const oc = outwardCode(pcds);
-      // Only set if not already set (first occurrence wins)
-      if (!map.has(oc)) {
-        map.set(oc, region);
-      }
-    }
-  }
-
-  console.log(`Built region map with ${map.size} outward codes`);
-  return map;
+  const regions = JSON.parse(fs.readFileSync(REGIONS_FILE, 'utf8'));
+  return new Map(Object.entries(regions));
 }
 
 // --- Step 2: Build website → scraped details cache ---
-// Scraping is the slow part (one page every 5 seconds) and a pub's history and
+// Scraping is the slow part (one page every 10 seconds) and a pub's history and
 // photo rarely change, so whatever was scraped before is reused: from the
 // previous spoons_enriched.json and from the progress file of an interrupted
 // run. Keyed on the website URL rather than the OSM id, which changes whenever
@@ -387,8 +317,7 @@ function reportChanges(previousSpoons, enriched) {
 async function main() {
   checkImageTools();
 
-  console.log('Reading ONS CSV...');
-  const regionMap = await buildRegionMap(findOnsCsv());
+  const regionMap = loadRegionMap();
 
   console.log('Reading spoons info...');
   const spoons = JSON.parse(fs.readFileSync(SPOONS_IN, 'utf8'));
