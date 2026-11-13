@@ -6,17 +6,19 @@ type SelectLocationProps = {
   locations: PubLocation[];
   selectedLocationId: number | string;
   label?: string;
+  disabled?: boolean;
   onChange: (evt: React.ChangeEvent<HTMLSelectElement>) => void;
 };
 
 export const SelectLocation = ({
   locations,
   selectedLocationId,
+  disabled = false,
   onChange,
 }: SelectLocationProps) => {
   const renderSelect = () => {
     return (
-      <select value={selectedLocationId} onChange={onChange}>
+      <select value={selectedLocationId} onChange={onChange} disabled={disabled}>
         {locations.map((location) => (
           <option key={location.id} value={location.id}>
             {location.name} · {location.city}

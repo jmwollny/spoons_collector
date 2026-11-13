@@ -81,6 +81,8 @@ function App() {
     locations[0]?.id ?? 0,
   );
   const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
+  // The visit being edited in the form, or null when adding a new one
+  const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
@@ -160,26 +162,58 @@ function App() {
     filteredLocations[0] ??
     locations[0];
 
+  const openAddVisit = () => {
+    setEditingVisitId(null);
+    setForm(getDefaultForm());
+    setIsVisitFormOpen(true);
+  };
+
+  // Opens the form filled in with the selected pub's visit
+  const openEditVisit = () => {
+    const visit = indexedVisits[selectedLocationId]?.[0];
+    if (!visit) {
+      return;
+    }
+    setEditingVisitId(visit.id);
+    setForm({ date: visit.date, rating: visit.rating });
+    setIsVisitFormOpen(true);
+  };
+
+  const closeVisitForm = () => {
+    setIsVisitFormOpen(false);
+    setEditingVisitId(null);
+    setForm(getDefaultForm());
+  };
+
   /**
    * Handle the form submission. Save the visit details to the browser's local storage.
    */
   const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!selectedLocationId) {
+    if (!selectedLocationId || !form.date) {
       return;
     }
 
-    const entry: VisitEntry = {
-      id: `${selectedLocationId}-${Date.now()}`,
-      locationId: selectedLocationId,
-      date: form.date,
-      rating: form.rating,
-    };
+    if (editingVisitId) {
+      setVisits((current) =>
+        current.map((visit) =>
+          visit.id === editingVisitId
+            ? { ...visit, date: form.date, rating: form.rating }
+            : visit,
+        ),
+      );
+    } else {
+      const entry: VisitEntry = {
+        id: `${selectedLocationId}-${Date.now()}`,
+        locationId: selectedLocationId,
+        date: form.date,
+        rating: form.rating,
+      };
+      setVisits((current) => [entry, ...current]);
+    }
 
-    setVisits((current) => [entry, ...current]);
-    setForm(getDefaultForm());
-    setIsVisitFormOpen(false);
+    closeVisitForm();
   };
 
   function onRatingUpdated(rating: number): void {
@@ -231,10 +265,9 @@ function App() {
             <div className="map-selector-actions">
               <ActionButton
                 variant="primary"
-                onClick={() => setIsVisitFormOpen(true)}
-                disabled={hasVisitsForSelectedLocation}
+                onClick={hasVisitsForSelectedLocation ? openEditVisit : openAddVisit}
               >
-                Add visit
+                {hasVisitsForSelectedLocation ? 'Edit visit' : 'Add visit'}
               </ActionButton>
               <ActionButton
                 variant="danger"
@@ -280,18 +313,18 @@ function App() {
           {isVisitFormOpen && (
             <div
               className="visit-form-modal-backdrop"
-              onClick={() => setIsVisitFormOpen(false)}
+              onClick={closeVisitForm}
             >
               <div
                 className="visit-form-modal"
                 onClick={(event) => event.stopPropagation()}
               >
                 <div className="visit-form-modal-header">
-                  <h2>Add visit</h2>
+                  <h2>{editingVisitId ? 'Edit visit' : 'Add visit'}</h2>
                   <button
                     type="button"
                     className="visit-form-close"
-                    onClick={() => setIsVisitFormOpen(false)}
+                    onClick={closeVisitForm}
                   >
                     Close
                   </button>
@@ -306,6 +339,8 @@ function App() {
                   }}
                   onRatingUpdated={onRatingUpdated}
                   onSubmit={handleSubmit}
+                  isEditing={editingVisitId !== null}
+                  maxDate={getTodayDate()}
                 />
               </div>
             </div>

@@ -14,6 +14,10 @@ type VisitFormProps = {
   onSpoonsSelected: (evt: React.ChangeEvent<HTMLSelectElement>) => void;
   onRatingUpdated: (rating: number) => void;
   onSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
+  // Editing an existing visit: its pub can't be changed
+  isEditing?: boolean;
+  // Latest date that can be picked (today)
+  maxDate?: string;
 };
 
 export const VisitForm = ({
@@ -24,6 +28,8 @@ export const VisitForm = ({
   onSpoonsSelected,
   onRatingUpdated,
   onSubmit,
+  isEditing = false,
+  maxDate,
 }: VisitFormProps) => {
   return (
     <form className="visit-form" onSubmit={onSubmit}>
@@ -31,12 +37,15 @@ export const VisitForm = ({
         locations={locations}
         selectedLocationId={selectedLocationId}
         onChange={onSpoonsSelected}
+        disabled={isEditing}
       />
 
       <label>
         Visit date
         <input
           type="date"
+          required
+          max={maxDate}
           value={form.date}
           onChange={(event) =>
             setForm((current) => ({
@@ -53,7 +62,7 @@ export const VisitForm = ({
         onClicked={onRatingUpdated}
       />
 
-      <button type="submit">Save visit</button>
+      <button type="submit">{isEditing ? 'Save changes' : 'Save visit'}</button>
     </form>
   );
 };
