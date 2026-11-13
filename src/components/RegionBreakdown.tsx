@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import type { PubLocation } from '../types';
+import { ProgressRow } from './ProgressRow';
 
 interface RegionBreakdownProps {
   locations: PubLocation[];
@@ -10,7 +11,6 @@ export const RegionBreakdown: React.FC<RegionBreakdownProps> = ({
   locations,
   visitedLocationIds,
 }) => {
-  // The calculation logic is safely self-contained right here
   const breakdowns = useMemo(() => {
     const grouped = locations.reduce<
       Record<string, { total: number; visited: number }>
@@ -26,35 +26,27 @@ export const RegionBreakdown: React.FC<RegionBreakdownProps> = ({
       return acc;
     }, {});
 
-    return Object.entries(grouped).map(([region, value]) => ({
-      region,
-      percentage: Math.round((value.visited / value.total) * 100),
-      visited: value.visited,
-      total: value.total,
-    }));
+    return Object.entries(grouped)
+      .map(([region, value]) => ({ region, ...value }))
+      .sort((a, b) => a.region.localeCompare(b.region));
   }, [locations, visitedLocationIds]);
 
   return (
-    <section className="lower-grid">
-      <div className="card">
-        <div className="section-heading">
-          <h2>Region breakdown</h2>
-          <p>See how far you are from completing each corner of the map.</p>
-        </div>
-        <ul className="stat-list">
-          {breakdowns.map((region) => (
-            <li key={region.region}>
-              <div>
-                <strong>{region.region}</strong>
-                <span>
-                  {region.visited}/{region.total} visited
-                </span>
-              </div>
-              <div className="progress-pill">{region.percentage}%</div>
-            </li>
-          ))}
-        </ul>
+    <div className="card">
+      <div className="section-heading">
+        <h2>Regions</h2>
+        <p>See how far you are from completing each corner of the map.</p>
       </div>
-    </section>
+      <ul className="progress-list">
+        {breakdowns.map((region) => (
+          <ProgressRow
+            key={region.region}
+            label={region.region}
+            visited={region.visited}
+            total={region.total}
+          />
+        ))}
+      </ul>
+    </div>
   );
 };

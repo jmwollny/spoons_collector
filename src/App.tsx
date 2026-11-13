@@ -8,7 +8,13 @@ import { VisitForm } from './components/VisitForm';
 import { Visits } from './components/Visits';
 import { ActionButton } from './components/ActionButton';
 import StarRating from './components/StarRating';
-import { formatDate } from './utils';
+import { distanceMiles, formatDate } from './utils';
+import { getCurrentLocation, type Position } from './location';
+import { ConfirmDialog } from './components/ConfirmDialog';
+import { Achievements } from './components/Achievements';
+import { RarityProgress } from './components/RarityProgress';
+import { RegionBreakdown } from './components/RegionBreakdown';
+import { BackupPanel } from './components/BackupPanel';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -83,6 +89,11 @@ function App() {
   const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
   // The visit being edited in the form, or null when adding a new one
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [sortBy, setSortBy] = useState('name-asc');
+  const [userPosition, setUserPosition] = useState<Position | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
@@ -120,7 +131,11 @@ function App() {
     () => new Set(visits.map((visit) => visit.locationId)),
     [visits],
   );
-  const uniqueVisitedCount = visitedLocationIds.size;
+  // Counts only pubs still in the data, not visits to pubs since closed
+  const uniqueVisitedCount = useMemo(
+    () => locations.filter((location) => visitedLocationIds.has(location.id)).length,
+    [visitedLocationIds],
+  );
   const totalLocations = locations.length;
   const completionPercentage = Math.round(
     (uniqueVisitedCount / totalLocations) * 100,
@@ -177,6 +192,37 @@ function App() {
     setEditingVisitId(visit.id);
     setForm({ date: visit.date, rating: visit.rating });
     setIsVisitFormOpen(true);
+  };
+
+  /**
+   * Near me: finds the user, then lists the unvisited pubs nearest first and
+   * selects the closest one, which centres the map on it.
+   */
+  const handleNearMe = async () => {
+    setLocating(true);
+    setLocationError(null);
+    try {
+      const position = await getCurrentLocation();
+      const nearest = locations
+        .filter((location) => !visitedLocationIds.has(location.id))
+        .reduce<{ id: number; miles: number } | null>((closest, location) => {
+          const miles = distanceMiles(position.lat, position.lon, location.lat, location.lon);
+          return !closest || miles < closest.miles ? { id: location.id, miles } : closest;
+        }, null);
+
+      setUserPosition(position);
+      setSortBy('distance');
+      setSearchTerm('');
+      setSelectedRegion('all');
+      setVisitFilter('unvisited');
+      if (nearest) {
+        setSelectedLocationId(nearest.id);
+      }
+    } catch (error) {
+      setLocationError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLocating(false);
+    }
   };
 
   const closeVisitForm = () => {
@@ -244,6 +290,7 @@ function App() {
       current.filter((visit) => visit.locationId !== selectedLocationId),
     );
     setForm(getDefaultForm());
+    setIsClearConfirmOpen(false);
   };
 
   const getRating = (id: number): number => {
@@ -271,7 +318,7 @@ function App() {
               </ActionButton>
               <ActionButton
                 variant="danger"
-                onClick={handleClearVisit}
+                onClick={() => setIsClearConfirmOpen(true)}
                 disabled={!hasVisitsForSelectedLocation}
               >
                 Clear visit
@@ -309,6 +356,23 @@ function App() {
               )}
             </div>
           </div>
+
+          {isClearConfirmOpen && (
+            <ConfirmDialog
+              title="Clear visit?"
+              message={
+                <>
+                  Your visit to <strong>{selectedLocation.name}</strong> on{' '}
+                  {getVisitDate(selectedLocationId)} and its rating will be deleted.
+                  This can't be undone.
+                </>
+              }
+              confirmLabel="Clear visit"
+              variant="danger"
+              onConfirm={handleClearVisit}
+              onCancel={() => setIsClearConfirmOpen(false)}
+            />
+          )}
 
           {isVisitFormOpen && (
             <div
@@ -353,6 +417,7 @@ function App() {
               selectedLocationId={selectedLocationId}
               onLocationSelect={setSelectedLocationId}
               mapCenter={mapCenter}
+              userPosition={userPosition}
             />
 
             {/* <div className="map-card-overlay"> */}
@@ -394,7 +459,20 @@ function App() {
           onSearchChange={setSearchTerm}
           onRegionChange={setSelectedRegion}
           onVisitFilterChange={setVisitFilter}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          userPosition={userPosition}
+          onNearMe={handleNearMe}
+          locating={locating}
+          locationError={locationError}
         />
+      </section>
+
+      <section className="progress-grid">
+        <Achievements locations={locations} visitedLocationIds={visitedLocationIds} />
+        <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
+        <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
+        <BackupPanel visits={visits} onVisitsChange={setVisits} today={getTodayDate()} />
       </section>
     </div>
   );

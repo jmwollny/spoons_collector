@@ -1,8 +1,9 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import SpoonCard from './SpoonCard';
 import type { PubLocation, VisitEntry } from '../types';
 import './Visits.css';
-import { formatDate } from '../utils';
+import { distanceMiles, formatDate } from '../utils';
+import type { Position } from '../location';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -19,6 +20,13 @@ type VisitsProps = {
   onSearchChange?: (value: string) => void;
   onRegionChange?: (value: string) => void;
   onVisitFilterChange?: (value: VisitFilter) => void;
+  sortBy: string;
+  onSortChange: (value: string) => void;
+  // Where the user is, once they've used Near me
+  userPosition: Position | null;
+  onNearMe: () => void;
+  locating: boolean;
+  locationError: string | null;
 };
 
 const RARITY_WEIGHTS: Record<string, number> = {
@@ -41,8 +49,25 @@ export const Visits = ({
   onSearchChange,
   onRegionChange,
   onVisitFilterChange,
+  sortBy,
+  onSortChange,
+  userPosition,
+  onNearMe,
+  locating,
+  locationError,
 }: VisitsProps) => {
-  const [sortBy, setSortBy] = useState<string>('name-asc');
+  // Miles from the user to each pub, once their position is known
+  const distances = useMemo(() => {
+    if (!userPosition) {
+      return null;
+    }
+    return new Map(
+      locations.map((pub) => [
+        pub.id,
+        distanceMiles(userPosition.lat, userPosition.lon, pub.lat, pub.lon),
+      ]),
+    );
+  }, [locations, userPosition]);
 
   const getVisitDate = (id: number): string | null => {
     const pubHistory = indexedVisits[id];
@@ -76,6 +101,9 @@ export const Visits = ({
 
     // 2. Sort the filtered locations
     return filtered.sort((a, b) => {
+      if (sortBy === 'distance' && distances) {
+        return (distances.get(a.id) ?? 0) - (distances.get(b.id) ?? 0);
+      }
       if (sortBy === 'name-asc') {
         return a.name.localeCompare(b.name);
       }
@@ -138,7 +166,7 @@ export const Visits = ({
       }
       return 0;
     });
-  }, [locations, searchTerm, selectedRegion, visitFilter, indexedVisits, sortBy]);
+  }, [locations, searchTerm, selectedRegion, visitFilter, indexedVisits, sortBy, distances]);
 
   return (
     <div className="card collection-gallery-card">
@@ -147,6 +175,14 @@ export const Visits = ({
       </div>
 
       <div className="collection-toolbar">
+        <button
+          type="button"
+          className="near-me-button"
+          onClick={onNearMe}
+          disabled={locating}
+        >
+          {locating ? 'Finding you…' : '📍 Near me'}
+        </button>
         <input
           type="search"
           className="collection-search"
@@ -180,8 +216,9 @@ export const Visits = ({
         <select
           className="collection-filter"
           value={sortBy}
-          onChange={(event) => setSortBy(event.target.value)}
+          onChange={(event) => onSortChange(event.target.value)}
         >
+          {userPosition && <option value="distance">Distance (nearest first)</option>}
           <option value="name-asc">Name (A-Z)</option>
           <option value="name-desc">Name (Z-A)</option>
           <option value="rarity-desc">Rarity (Legendary first)</option>
@@ -192,6 +229,12 @@ export const Visits = ({
           <option value="date-asc">Visit Date (Oldest first)</option>
         </select>
       </div>
+
+      {locationError && (
+        <p className="near-me-error" role="alert">
+          {locationError}
+        </p>
+      )}
 
       {/* Grid container to wrap the dynamic list of cards */}
       <div className="visits-cards-grid">
@@ -220,6 +263,7 @@ export const Visits = ({
                   medium={true}
                   selected={selectedLocationId === pub.id}
                   date={getVisitDate(pub.id)}
+                  distanceMiles={distances?.get(pub.id)}
                 />
               </button>
             </div>

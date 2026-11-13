@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import './SpoonCard.css';
 import StarRating from './StarRating';
+import { formatMiles } from '../utils';
 type SpoonCardProps = {
   id: number;
   name: string;
@@ -16,6 +17,8 @@ type SpoonCardProps = {
   hasImage: boolean;
   selected?: boolean;
   date?: string | null;
+  // Miles from the user, shown once they've used Near me
+  distanceMiles?: number;
 };
 
 const SpoonCard = (props: SpoonCardProps) => {
@@ -105,6 +108,12 @@ const SpoonCard = (props: SpoonCardProps) => {
               <span className="stat-label">Locality</span>
               <span className="stat-value">{props.city}</span>
             </div>
+            {props.distanceMiles !== undefined && (
+              <div className="stat-row">
+                <span className="stat-label">Distance</span>
+                <span className="stat-value">{formatMiles(props.distanceMiles)}</span>
+              </div>
+            )}
             <div className="stat-row">
               <span className="stat-label">Visit date</span>
               <span className="stat-value">{props.date || 'Not visited'}</span>

@@ -1,4 +1,4 @@
-import { MapContainer, Marker, TileLayer, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import './Map.css';
@@ -22,6 +22,8 @@ interface MapProps {
   selectedLocationId: number;
   onLocationSelect: (locationId: number) => void;
   mapCenter: [number, number];
+  // Where the user is, once they've used Near me
+  userPosition?: { lat: number; lon: number } | null;
 }
 
 const DEFAULT_ZOOM = 12;
@@ -105,6 +107,7 @@ export function Map({
   selectedLocationId,
   onLocationSelect,
   mapCenter,
+  userPosition,
 }: MapProps) {
   return (
     <div className="map-shell">
@@ -120,6 +123,15 @@ export function Map({
           selectedLocationId={selectedLocationId}
           onLocationSelect={onLocationSelect}
         />
+        {userPosition && (
+          <CircleMarker
+            center={[userPosition.lat, userPosition.lon]}
+            radius={8}
+            pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
+          >
+            <Tooltip>You are here</Tooltip>
+          </CircleMarker>
+        )}
       </MapContainer>
     </div>
   );

@@ -433,3 +433,122 @@
   display: flex;
   align-items: center;
 }
+/* ==========================================
+   Progress section: achievements, rarity, regions and backups
+   ========================================== */
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+.progress-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.progress-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.progress-row-text {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-size: 0.92rem;
+}
+
+.progress-row-text strong {
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.progress-row-text span {
+  color: #64748b;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #2563eb;
+  transition: width 0.4s ease;
+}
+
+.achievement-list .achievement-progress {
+  flex-shrink: 0;
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.achievement-list li.unlocked .achievement-progress {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Opened by the "Restore from backup" button instead */
+.backup-file-input {
+  display: none;
+}
+
+.backup-last {
+  margin-top: 0.9rem;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.backup-status {
+  margin-top: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  border-radius: 12px;
+  font-size: 0.92rem;
+}
+
+.backup-status--success {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.backup-status--error {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.confirm-dialog {
+  width: min(100%, 26rem);
+}
+
+.confirm-dialog-message {
+  margin: 0.75rem 0 1.25rem;
+  color: #475569;
+}
+
+.confirm-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
