@@ -95,24 +95,48 @@
 }
 
 .spoon-marker {
+  display: block;
   width: 14px;
   height: 14px;
   border-radius: 999px;
   border: 2px solid white;
   background: #64748b;
-  box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.16);
-  transition:
-    transform 140ms ease,
-    background 140ms ease;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.25);
+  transition: transform 140ms ease;
 }
 
+/* Rarity colours match the card borders in SpoonCard.css */
+.spoon-marker.rarity-common {
+  background: #64748b;
+}
+
+.spoon-marker.rarity-uncommon {
+  background: #10b981;
+}
+
+.spoon-marker.rarity-rare {
+  background: #0284c7;
+}
+
+.spoon-marker.rarity-epic {
+  background: #8b5cf6;
+}
+
+.spoon-marker.rarity-legendary {
+  background: #f59e0b;
+}
+
+/* Visited: a dark ring around the rarity colour */
 .spoon-marker.visited {
-  background: #1d4ed8;
+  border-color: #0f172a;
+  border-width: 3px;
 }
 
 .spoon-marker.active {
-  background: #f59e0b;
-  transform: scale(1.2);
+  transform: scale(1.6);
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 5px #2563eb;
 }
 
 .map-popup {
@@ -551,4 +575,56 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+/* Visit history: every visit to one pub */
+.visit-history-list {
+  list-style: none;
+  margin: 0 0 1rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.visit-history-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.visit-history-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.visit-history-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.visit-history-actions .visit-form-close {
+  padding: 0.45rem 0.85rem;
+}
+
+.visit-history-delete {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 0.85rem;
+  font: inherit;
+  cursor: pointer;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.map-selector-actions .visit-form-close:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

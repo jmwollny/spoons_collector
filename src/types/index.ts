@@ -17,7 +17,10 @@ export type PubLocation = {
   history: string;
   rarity: string;
   imgType: string | null;
+  // Miles to the nearest and second-nearest other Wetherspoon. Rarity is
+  // based on the second-nearest.
   nearestNeighborMiles: number;
+  secondNeighborMiles: number;
 };
 
 export type VisitEntry = {

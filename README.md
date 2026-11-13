@@ -1,6 +1,6 @@
 # Spoons Collector
 
-Collect Wetherspoon pubs like trading cards. Every pub in the UK gets a card with its photo, its history and a rarity based on how far it is from the next nearest Wetherspoon. Log a visit and a star rating, and watch your collection grow on the map.
+Collect Wetherspoon pubs like trading cards. Every pub in the UK gets a card with its photo, its history and a rarity based on how isolated it is from other Wetherspoons. Log a visit and a star rating, and watch your collection grow on the map.
 
 Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits are stored in your browser's local storage, so there is no account or server.
 
@@ -41,15 +41,17 @@ npx cap open android
 
 ### Rarity
 
-A pub's rarity comes from the distance to its nearest neighbouring Wetherspoon:
+A pub's rarity comes from the distance to its **second**-nearest other Wetherspoon. Using the second-nearest means a pair of pubs in an otherwise isolated town (like Carlisle's two, 0.06 miles apart with the next 17 miles away) count as rare, rather than making each other Common.
 
-| Rarity | Nearest Wetherspoon |
+| Rarity | Second-nearest Wetherspoon |
 |---|---|
-| Common | under 1 mile |
-| Uncommon | 1–2.5 miles |
-| Rare | 2.5–6 miles |
-| Epic | 6–12 miles |
-| Legendary | 12 miles or more |
+| Common | under 2¼ miles |
+| Uncommon | 2¼–4½ miles |
+| Rare | 4½–9 miles |
+| Epic | 9–16 miles |
+| Legendary | 16 miles or more |
+
+Flip a card to see both distances.
 
 ### Regions
 

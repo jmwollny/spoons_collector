@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import StarRating from './StarRating';
-import { SelectLocation } from './SelectLocation'; // 👈 Import your new component
+import { SelectLocation } from './SelectLocation';
 import type { PubLocation } from '../types';
 import './VisitForm.css';
 
@@ -11,7 +11,7 @@ type VisitFormProps = {
   setForm: React.Dispatch<
     React.SetStateAction<{ date: string; rating: number }>
   >;
-  onSpoonsSelected: (evt: React.ChangeEvent<HTMLSelectElement>) => void;
+  onLocationSelected: (locationId: number) => void;
   onRatingUpdated: (rating: number) => void;
   onSubmit: (event: React.SubmitEvent<HTMLFormElement>) => void;
   // Editing an existing visit: its pub can't be changed
@@ -25,18 +25,21 @@ export const VisitForm = ({
   selectedLocationId,
   form,
   setForm,
-  onSpoonsSelected,
+  onLocationSelected,
   onRatingUpdated,
   onSubmit,
   isEditing = false,
   maxDate,
 }: VisitFormProps) => {
+  const [hasMatchingPub, setHasMatchingPub] = useState(true);
+
   return (
     <form className="visit-form" onSubmit={onSubmit}>
       <SelectLocation
         locations={locations}
         selectedLocationId={selectedLocationId}
-        onChange={onSpoonsSelected}
+        onSelect={onLocationSelected}
+        onHasMatchesChange={setHasMatchingPub}
         disabled={isEditing}
       />
 
@@ -62,7 +65,7 @@ export const VisitForm = ({
         onClicked={onRatingUpdated}
       />
 
-      <button type="submit">{isEditing ? 'Save changes' : 'Save visit'}</button>
+      <button type="submit" disabled={!hasMatchingPub}>{isEditing ? 'Save changes' : 'Save visit'}</button>
     </form>
   );
 };

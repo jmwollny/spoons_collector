@@ -35,7 +35,7 @@ export const RarityProgress = ({ locations, visitedLocationIds }: RarityProgress
     <div className="card">
       <div className="section-heading">
         <h2>Rarity</h2>
-        <p>The further a pub is from the next Wetherspoon, the rarer it is.</p>
+        <p>The further a pub is from other Wetherspoons, the rarer it is.</p>
       </div>
       <ul className="progress-list">
         {tiers.map((tier) => (

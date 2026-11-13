@@ -24,13 +24,16 @@ export const ConfirmDialog = ({
   onCancel,
 }: ConfirmDialogProps) => {
   useEffect(() => {
+    // Listens in the capture phase and stops the event, so Escape cancels
+    // only this dialog and not a dialog open behind it
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
+        event.stopPropagation();
         onCancel();
       }
     };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
   }, [onCancel]);
 
   return (

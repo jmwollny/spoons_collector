@@ -11,3 +11,50 @@
   width: 100%;
   z-index: 1;
 }
+
+/* Groups of pubs when zoomed out */
+.spoon-cluster-icon {
+  background: transparent;
+  border: none;
+}
+
+.spoon-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.85);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.3);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.map-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0.6rem 0.9rem;
+  list-style: none;
+  border-top: 1px solid #dbeafe;
+  background: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.map-legend li {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.map-legend .spoon-marker {
+  width: 12px;
+  height: 12px;
+}
+
+.map-legend .spoon-marker.visited {
+  background: #fff;
+}

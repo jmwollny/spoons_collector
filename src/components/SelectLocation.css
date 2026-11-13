@@ -12,3 +12,24 @@ label {
   font-size: 0.95rem;
   color: #334155;
 }
+
+.select-location {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.select-location input {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+}
+
+.select-location-empty {
+  margin: 0;
+  padding: 0.7rem 0.8rem;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+}

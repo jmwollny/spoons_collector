@@ -1,4 +1,4 @@
-package com.example.app;
+package com.jmwollny.spoonscollector;
 
 import com.getcapacitor.BridgeActivity;
 

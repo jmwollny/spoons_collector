@@ -1,9 +1,11 @@
 import React, { useMemo } from 'react';
-import type { PubLocation } from '../types';
+import type { PubLocation, VisitEntry } from '../types';
 
 interface AchievementsProps {
   locations: PubLocation[];
   visitedLocationIds: Set<number>;
+  // Each pub's visits
+  indexedVisits: Record<number, VisitEntry[]>;
 }
 
 type Achievement = {
@@ -17,6 +19,7 @@ type Achievement = {
 export const Achievements: React.FC<AchievementsProps> = ({
   locations,
   visitedLocationIds,
+  indexedVisits,
 }) => {
   const achievementsList = useMemo<Achievement[]>(() => {
     const visited = locations.filter((location) => visitedLocationIds.has(location.id));
@@ -24,6 +27,10 @@ export const Achievements: React.FC<AchievementsProps> = ({
     const visitedRegions = new Set(visited.map((location) => location.region));
     const legendaryCount = visited.filter((location) => location.rarity === 'Legendary').length;
     const count = visited.length;
+    const mostVisitsToOnePub = Math.max(
+      0,
+      ...visited.map((location) => indexedVisits[location.id]?.length ?? 0),
+    );
 
     return [
       { title: 'First Pint', detail: 'Log your first Spoons visit.', progress: count, target: 1 },
@@ -33,9 +40,15 @@ export const Achievements: React.FC<AchievementsProps> = ({
       { title: 'Centurion', detail: 'Visit a hundred different Spoons.', progress: count, target: 100 },
       {
         title: 'Off the Beaten Track',
-        detail: 'Visit a Legendary Spoons, 12 miles or more from any other.',
+        detail: 'Visit a Legendary Spoons: at most one other Spoons within 16 miles.',
         progress: legendaryCount,
         target: 1,
+      },
+      {
+        title: 'Regular',
+        detail: 'Visit the same Spoons five times.',
+        progress: mostVisitsToOnePub,
+        target: 5,
       },
       {
         title: 'Grand Tour',
@@ -50,7 +63,7 @@ export const Achievements: React.FC<AchievementsProps> = ({
         target: locations.length,
       },
     ];
-  }, [locations, visitedLocationIds]);
+  }, [locations, visitedLocationIds, indexedVisits]);
 
   return (
     <div className="card">

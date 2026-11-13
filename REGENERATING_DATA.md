@@ -58,7 +58,7 @@ node enrich.js
 - Scrapes and attaches pub history text from each pub's website URL
 - Scrapes the pub's image details and downloads the full-size photo to `./assets/images_original`
 - Saves a 600px-wide WebP copy of each photo to `./public/images`, which is what the app serves
-- Calculates each pub's rarity from the distance to its nearest neighbour
+- Calculates each pub's rarity from the distance to its second-nearest neighbour (see the rarity table in README.md)
 
 Both image folders name files by the pub's Wetherspoon id (`jdwId`), e.g. `1352.webp`, so a pub keeps its photo when it is redrawn in OpenStreetMap and gets a new OSM id. Only `public/images` ends up in the site and the Android app; the originals stay out of the build.
 

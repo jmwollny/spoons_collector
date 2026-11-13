@@ -11,6 +11,8 @@ type SpoonCardProps = {
   history: string;
   rating: number;
   visited: boolean;
+  // How many times the pub has been visited
+  visitCount?: number;
   small?: boolean;
   medium?: boolean;
   // Whether public/images holds a photo for this pub
@@ -19,7 +21,15 @@ type SpoonCardProps = {
   date?: string | null;
   // Miles from the user, shown once they've used Near me
   distanceMiles?: number;
+  // Miles to the nearest and second-nearest other Wetherspoon
+  nearestMiles: number;
+  secondMiles: number;
+  // Links to the pub's Wetherspoon page and menu ('NONE' when unknown)
+  website: string;
+  menu: string;
 };
+
+const hasLink = (url: string) => Boolean(url) && url !== 'NONE';
 
 const SpoonCard = (props: SpoonCardProps) => {
   const [flipped, setFlipped] = useState(false);
@@ -114,8 +124,14 @@ const SpoonCard = (props: SpoonCardProps) => {
                 <span className="stat-value">{formatMiles(props.distanceMiles)}</span>
               </div>
             )}
+            {(props.visitCount ?? 0) > 1 && (
+              <div className="stat-row">
+                <span className="stat-label">Visits</span>
+                <span className="stat-value">{props.visitCount}</span>
+              </div>
+            )}
             <div className="stat-row">
-              <span className="stat-label">Visit date</span>
+              <span className="stat-label">{(props.visitCount ?? 0) > 1 ? 'Last visit' : 'Visit date'}</span>
               <span className="stat-value">{props.date || 'Not visited'}</span>
             </div>
             <div className="stat-row">
@@ -145,6 +161,40 @@ const SpoonCard = (props: SpoonCardProps) => {
             <p className="card-back-label">History</p>
             <p className="card-back-text">{props.history}</p>
           </div>
+          <dl className="card-back-facts">
+            <div>
+              <dt>Nearest Spoons</dt>
+              <dd>{formatMiles(props.nearestMiles)}</dd>
+            </div>
+            <div>
+              <dt>Next nearest</dt>
+              <dd>{formatMiles(props.secondMiles)}</dd>
+            </div>
+          </dl>
+          {(hasLink(props.website) || hasLink(props.menu)) && (
+            <nav className="card-back-links">
+              {hasLink(props.website) && (
+                <a
+                  href={props.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  Pub page ↗
+                </a>
+              )}
+              {hasLink(props.menu) && (
+                <a
+                  href={props.menu}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  Menu ↗
+                </a>
+              )}
+            </nav>
+          )}
         </div>
       </div>
     </article>

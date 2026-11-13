@@ -398,3 +398,64 @@
     /* Sweep all the way to the right and hold */
   }
 }
+/* Back of the card: how isolated the pub is, and links */
+.card-back-facts {
+  display: flex;
+  gap: 8px;
+  margin: 0;
+}
+
+.card-back-facts > div {
+  flex: 1;
+  background-color: var(--panel-bg);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.card-back-facts dt {
+  color: var(--card-text-muted);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.04em;
+}
+
+.card-back-facts dd {
+  margin: 2px 0 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.card-back-links {
+  display: flex;
+  gap: 8px;
+}
+
+.card-back-links a {
+  flex: 1;
+  white-space: nowrap;
+  text-align: center;
+  padding: 6px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--card-border);
+  color: var(--card-text-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.card-back-links a:hover,
+.card-back-links a:focus-visible {
+  background: color-mix(in srgb, var(--card-border) 25%, transparent);
+}
+
+/* On phones the map is narrow: shrink the card so it doesn't cover the
+   selected pub, which sits in the middle of the map */
+@media (max-width: 600px) {
+  .spoon-card.small {
+    transform: scale(0.38);
+  }
+
+  .spoon-card.small:hover {
+    transform: scale(0.36);
+  }
+}

@@ -15,6 +15,7 @@ import { Achievements } from './components/Achievements';
 import { RarityProgress } from './components/RarityProgress';
 import { RegionBreakdown } from './components/RegionBreakdown';
 import { BackupPanel } from './components/BackupPanel';
+import { VisitHistory } from './components/VisitHistory';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -58,7 +59,11 @@ const regions = Array.from(
   new Set(locations.map((location) => location.region)),
 ).sort();
 
-const mapCenter: [number, number] = [54.5, -2.5];
+// The map opens showing every pub
+const initialMapBounds: [[number, number], [number, number]] = [
+  [Math.min(...locations.map((location) => location.lat)), Math.min(...locations.map((location) => location.lon))],
+  [Math.max(...locations.map((location) => location.lat)), Math.max(...locations.map((location) => location.lon))],
+];
 
 function App() {
   const [visits, setVisits] = useState<VisitEntry[]>(() => {
@@ -89,7 +94,9 @@ function App() {
   const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
   // The visit being edited in the form, or null when adding a new one
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
-  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // The visit waiting for the user to confirm its deletion
+  const [visitPendingDelete, setVisitPendingDelete] = useState<VisitEntry | null>(null);
   const [sortBy, setSortBy] = useState('name-asc');
   const [userPosition, setUserPosition] = useState<Position | null>(null);
   const [locating, setLocating] = useState(false);
@@ -103,29 +110,6 @@ function App() {
     window.localStorage.setItem(storageKey, JSON.stringify(visits));
   }, [visits]);
 
-  // // Get the last visit information when the selectedLocationId or visits array is updated.
-  // useEffect(() => {
-  //   // When location changes, populate form with last visit data or defaults
-  //   const lastVisit = visits.find(
-  //     (visit) => visit.locationId === selectedLocationId,
-  //   );
-
-  //   if (lastVisit) {
-  //     // Pre-fill form with the last visit's details
-  //     setForm({
-  //       date: lastVisit.date,
-  //       rating: lastVisit.rating,
-  //     });
-  //   } else {
-  //     // No previous visit, use default form
-  //     setForm(getDefaultForm());
-  //   }
-  // }, [selectedLocationId, visits]);
-
-  const getVisitDate = (id: number): string | null => {
-    const visitDate = visits.find((visit) => visit.locationId === id)?.date ?? null;
-    return visitDate ? formatDate(visitDate) : null;
-  };
 
   const visitedLocationIds = useMemo(
     () => new Set(visits.map((visit) => visit.locationId)),
@@ -140,14 +124,24 @@ function App() {
   const completionPercentage = Math.round(
     (uniqueVisitedCount / totalLocations) * 100,
   );
-  // Indexing layout for rapid lookup tracking
+  // Each pub's visits, newest first, so [0] is always the latest visit
   const indexedVisits = useMemo(() => {
-    return visits.reduce<Record<number, (typeof visits)[0][]>>((acc, visit) => {
+    const byPub = visits.reduce<Record<number, VisitEntry[]>>((acc, visit) => {
       if (!acc[visit.locationId]) acc[visit.locationId] = [];
       acc[visit.locationId].push(visit);
       return acc;
     }, {});
+    for (const pubVisits of Object.values(byPub)) {
+      pubVisits.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
+    }
+    return byPub;
   }, [visits]);
+
+  // Date of the latest visit to a pub, formatted for display
+  const getVisitDate = (id: number): string | null => {
+    const latest = indexedVisits[id]?.[0];
+    return latest ? formatDate(latest.date) : null;
+  };
 
   const filteredLocations = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
@@ -183,12 +177,9 @@ function App() {
     setIsVisitFormOpen(true);
   };
 
-  // Opens the form filled in with the selected pub's visit
-  const openEditVisit = () => {
-    const visit = indexedVisits[selectedLocationId]?.[0];
-    if (!visit) {
-      return;
-    }
+  // Opens the form filled in with one of the selected pub's visits
+  const openEditVisit = (visit: VisitEntry) => {
+    setIsHistoryOpen(false);
     setEditingVisitId(visit.id);
     setForm({ date: visit.date, rating: visit.rating });
     setIsVisitFormOpen(true);
@@ -285,13 +276,19 @@ function App() {
     indexedVisits[selectedLocationId]?.length,
   );
 
-  const handleClearVisit = () => {
-    setVisits((current) =>
-      current.filter((visit) => visit.locationId !== selectedLocationId),
-    );
-    setForm(getDefaultForm());
-    setIsClearConfirmOpen(false);
+  const handleDeleteVisit = () => {
+    if (!visitPendingDelete) {
+      return;
+    }
+    const remaining = (indexedVisits[visitPendingDelete.locationId]?.length ?? 1) - 1;
+    setVisits((current) => current.filter((visit) => visit.id !== visitPendingDelete.id));
+    setVisitPendingDelete(null);
+    if (remaining === 0) {
+      setIsHistoryOpen(false);
+    }
   };
+
+  const selectedVisitCount = indexedVisits[selectedLocationId]?.length ?? 0;
 
   const getRating = (id: number): number => {
     const visitsBySelectedLocation = indexedVisits[id];
@@ -304,25 +301,23 @@ function App() {
         <div className="card map-card">
           <header className="hero-card">
             <div>
-              <h1>Wetherspoons Collector</h1>
+              <h1>Spoons Collector</h1>
               <p className="hero-copy">Log your visits and rate each pub.</p>
             </div>
           </header>
           <div className="map-selector-container">
             <div className="map-selector-actions">
-              <ActionButton
-                variant="primary"
-                onClick={hasVisitsForSelectedLocation ? openEditVisit : openAddVisit}
-              >
-                {hasVisitsForSelectedLocation ? 'Edit visit' : 'Add visit'}
+              <ActionButton variant="primary" onClick={openAddVisit}>
+                Add visit
               </ActionButton>
-              <ActionButton
-                variant="danger"
-                onClick={() => setIsClearConfirmOpen(true)}
+              <button
+                type="button"
+                className="visit-form-close"
+                onClick={() => setIsHistoryOpen(true)}
                 disabled={!hasVisitsForSelectedLocation}
               >
-                Clear visit
-              </ActionButton>
+                Visits ({selectedVisitCount})
+              </button>
 
               {selectedLocation && (
                 <div className={`selected-visit-details ${!hasVisitsForSelectedLocation ? 'is-unvisited' : ''}`}>
@@ -342,6 +337,12 @@ function App() {
                         disabled={true}
                         size={14}
                       />
+                      {selectedVisitCount > 1 && (
+                        <>
+                          <span className="details-divider">·</span>
+                          <span className="details-value">{selectedVisitCount} visits</span>
+                        </>
+                      )}
                     </>
                   ) : (
                     <>
@@ -357,20 +358,34 @@ function App() {
             </div>
           </div>
 
-          {isClearConfirmOpen && (
+          {isHistoryOpen && hasVisitsForSelectedLocation && (
+            <VisitHistory
+              pubName={selectedLocation.name}
+              visits={indexedVisits[selectedLocationId]}
+              onAdd={() => {
+                setIsHistoryOpen(false);
+                openAddVisit();
+              }}
+              onEdit={openEditVisit}
+              onDelete={setVisitPendingDelete}
+              onClose={() => setIsHistoryOpen(false)}
+            />
+          )}
+
+          {visitPendingDelete && (
             <ConfirmDialog
-              title="Clear visit?"
+              title="Delete visit?"
               message={
                 <>
                   Your visit to <strong>{selectedLocation.name}</strong> on{' '}
-                  {getVisitDate(selectedLocationId)} and its rating will be deleted.
+                  {formatDate(visitPendingDelete.date)} and its rating will be deleted.
                   This can't be undone.
                 </>
               }
-              confirmLabel="Clear visit"
+              confirmLabel="Delete visit"
               variant="danger"
-              onConfirm={handleClearVisit}
-              onCancel={() => setIsClearConfirmOpen(false)}
+              onConfirm={handleDeleteVisit}
+              onCancel={() => setVisitPendingDelete(null)}
             />
           )}
 
@@ -398,9 +413,7 @@ function App() {
                   selectedLocationId={selectedLocationId}
                   form={form}
                   setForm={setForm}
-                  onSpoonsSelected={(event) => {
-                    handleSelectLocation(Number(event.target.value));
-                  }}
+                  onLocationSelected={handleSelectLocation}
                   onRatingUpdated={onRatingUpdated}
                   onSubmit={handleSubmit}
                   isEditing={editingVisitId !== null}
@@ -416,7 +429,7 @@ function App() {
               visitedLocationIds={visitedLocationIds}
               selectedLocationId={selectedLocationId}
               onLocationSelect={setSelectedLocationId}
-              mapCenter={mapCenter}
+              initialBounds={initialMapBounds}
               userPosition={userPosition}
             />
 
@@ -430,9 +443,14 @@ function App() {
               rating={getRating(selectedLocationId)}
               history={selectedLocation.history}
               visited={getVisits(selectedLocation.id) > 0}
+              visitCount={getVisits(selectedLocation.id)}
               date={getVisitDate(selectedLocationId)}
               small={true}
               hasImage={Boolean(selectedLocation.imgType)}
+              nearestMiles={selectedLocation.nearestNeighborMiles}
+              secondMiles={selectedLocation.secondNeighborMiles}
+              website={selectedLocation.website}
+              menu={selectedLocation.menu}
             />
             {/* </div> */}
           </div>
@@ -469,7 +487,11 @@ function App() {
       </section>
 
       <section className="progress-grid">
-        <Achievements locations={locations} visitedLocationIds={visitedLocationIds} />
+        <Achievements
+          locations={locations}
+          visitedLocationIds={visitedLocationIds}
+          indexedVisits={indexedVisits}
+        />
         <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
         <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
         <BackupPanel visits={visits} onVisitsChange={setVisits} today={getTodayDate()} />

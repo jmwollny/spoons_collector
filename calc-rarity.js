@@ -1,13 +1,26 @@
+// Rarity thresholds in miles, applied to the distance to the SECOND-nearest
+// other Wetherspoon. Using the second-nearest means a pair of pubs in an
+// otherwise isolated town (Carlisle's two are 0.06 miles apart, with the next
+// 17 miles away) are rare, rather than making each other Common. The values
+// keep the tiers about the size they were under the old nearest-pub rule.
+const RARITY_TIERS = [
+  { rarity: 'Legendary', minMiles: 16 },
+  { rarity: 'Epic', minMiles: 9 },
+  { rarity: 'Rare', minMiles: 4.5 },
+  { rarity: 'Uncommon', minMiles: 2.25 },
+  { rarity: 'Common', minMiles: 0 },
+];
+
 /**
  * Calculates the rarity tier of a single pub relative to the entire estate
  * @param {Object} currentPub - The pub currently being processed
  * @param {Array} allSpoons - The full array of all collected pubs
- * @returns {Object} { rarity, nearestNeighborMiles }
+ * @returns {Object} { rarity, nearestNeighborMiles, secondNeighborMiles }
  */
 function calculateRarity(currentPub, allSpoons) {
-  let nearestDistance = Infinity;
+  let nearest = Infinity;
+  let secondNearest = Infinity;
 
-  // Find the absolute closest neighbor in the estate
   for (const targetPub of allSpoons) {
     if (currentPub.id === targetPub.id) continue; // Don't match against itself
 
@@ -17,27 +30,20 @@ function calculateRarity(currentPub, allSpoons) {
       targetPub.lat,
       targetPub.lon,
     );
-    if (dist < nearestDistance) {
-      nearestDistance = dist;
+    if (dist < nearest) {
+      secondNearest = nearest;
+      nearest = dist;
+    } else if (dist < secondNearest) {
+      secondNearest = dist;
     }
   }
 
-  // Real-world calibrated thresholds for the ~830 UK Wetherspoons footprint
-  let rarity = 'Common';
-
-  if (nearestDistance >= 12.0) {
-    rarity = 'Legendary'; // Remote outposts (e.g., Stornoway, Wick, extreme coastlines)
-  } else if (nearestDistance >= 6.0) {
-    rarity = 'Epic'; // Highly isolated standalone target locations
-  } else if (nearestDistance >= 2.5) {
-    rarity = 'Rare'; // Country market town hubs
-  } else if (nearestDistance >= 1.0) {
-    rarity = 'Uncommon'; // Standard outer suburban towns
-  }
+  const { rarity } = RARITY_TIERS.find((tier) => secondNearest >= tier.minMiles);
 
   return {
     rarity,
-    nearestNeighborMiles: parseFloat(nearestDistance.toFixed(2)),
+    nearestNeighborMiles: parseFloat(nearest.toFixed(2)),
+    secondNeighborMiles: parseFloat(secondNearest.toFixed(2)),
   };
 }
 

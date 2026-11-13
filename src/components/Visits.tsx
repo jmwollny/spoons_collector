@@ -171,7 +171,10 @@ export const Visits = ({
   return (
     <div className="card collection-gallery-card">
       <div className="section-heading">
-        <h2>Showing {processedLocations.length} Wetherspoon Pubs</h2>
+        <h2>
+          Showing {processedLocations.length} Wetherspoon{' '}
+          {processedLocations.length === 1 ? 'pub' : 'pubs'}
+        </h2>
       </div>
 
       <div className="collection-toolbar">
@@ -259,11 +262,16 @@ export const Visits = ({
                   rating={latestRating}
                   history={pub.history}
                   visited={pubHistory.length > 0}
+                  visitCount={pubHistory.length}
                   hasImage={Boolean(pub.imgType)}
                   medium={true}
                   selected={selectedLocationId === pub.id}
                   date={getVisitDate(pub.id)}
                   distanceMiles={distances?.get(pub.id)}
+                  nearestMiles={pub.nearestNeighborMiles}
+                  secondMiles={pub.secondNeighborMiles}
+                  website={pub.website}
+                  menu={pub.menu}
                 />
               </button>
             </div>
