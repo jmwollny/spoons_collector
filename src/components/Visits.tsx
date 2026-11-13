@@ -13,6 +13,8 @@ type VisitsProps = {
   regions: string[];
   indexedVisits: Record<number, VisitEntry[]>;
   onSelectLocation?: (locationId: number) => void;
+  // Opens a pub's card full size
+  onOpenCard: (locationId: number) => void;
   selectedLocationId?: number;
   searchTerm?: string;
   selectedRegion?: string;
@@ -42,6 +44,7 @@ export const Visits = ({
   regions,
   indexedVisits,
   onSelectLocation,
+  onOpenCard,
   selectedLocationId,
   searchTerm = '',
   selectedRegion = 'all',
@@ -168,6 +171,20 @@ export const Visits = ({
     });
   }, [locations, searchTerm, selectedRegion, visitFilter, indexedVisits, sortBy, distances]);
 
+  /**
+   * With a mouse, the first click selects the pub (the map beside the list
+   * centres on it) and a second click opens its card full size. On a touch
+   * screen the map is above the list, out of sight, so one tap does both.
+   */
+  const handleCardClick = (id: number) => {
+    const isTouch = window.matchMedia('(hover: none)').matches;
+    if (isTouch || id === selectedLocationId) {
+      onOpenCard(id);
+    } else {
+      onSelectLocation?.(id);
+    }
+  };
+
   return (
     <div className="card collection-gallery-card">
       <div className="section-heading">
@@ -178,23 +195,26 @@ export const Visits = ({
       </div>
 
       <div className="collection-toolbar">
-        <button
-          type="button"
-          className="near-me-button"
-          onClick={onNearMe}
-          disabled={locating}
-        >
-          {locating ? 'Finding you…' : '📍 Near me'}
-        </button>
-        <input
-          type="search"
-          className="collection-search"
-          placeholder="Search pub or city"
-          value={searchTerm}
-          onChange={(event) => onSearchChange?.(event.target.value)}
-        />
+        <div className="collection-search-row">
+          <button
+            type="button"
+            className="near-me-button"
+            onClick={onNearMe}
+            disabled={locating}
+          >
+            {locating ? 'Finding you…' : '📍 Near me'}
+          </button>
+          <input
+            type="search"
+            className="collection-search"
+            placeholder="Search pub or city"
+            value={searchTerm}
+            onChange={(event) => onSearchChange?.(event.target.value)}
+          />
+        </div>
         <select
-          className="collection-filter"
+          className="collection-filter collection-filter--region"
+          aria-label="Region"
           value={selectedRegion}
           onChange={(event) => onRegionChange?.(event.target.value)}
         >
@@ -206,7 +226,8 @@ export const Visits = ({
           ))}
         </select>
         <select
-          className="collection-filter"
+          className="collection-filter collection-filter--visits"
+          aria-label="Visited or not"
           value={visitFilter}
           onChange={(event) =>
             onVisitFilterChange?.(event.target.value as VisitFilter)
@@ -217,7 +238,8 @@ export const Visits = ({
           <option value="unvisited">Unvisited</option>
         </select>
         <select
-          className="collection-filter"
+          className="collection-filter collection-filter--sort"
+          aria-label="Sort by"
           value={sortBy}
           onChange={(event) => onSortChange(event.target.value)}
         >
@@ -251,7 +273,8 @@ export const Visits = ({
               <button
                 type="button"
                 className="visits-card-button"
-                onClick={() => onSelectLocation?.(pub.id)}
+                onClick={() => handleCardClick(pub.id)}
+                aria-label={`${pub.name}, ${pub.city}`}
               >
                 <SpoonCard
                   id={pub.id}

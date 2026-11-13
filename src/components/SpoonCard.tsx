@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import './SpoonCard.css';
 import StarRating from './StarRating';
 import { formatMiles } from '../utils';
@@ -13,8 +12,14 @@ type SpoonCardProps = {
   visited: boolean;
   // How many times the pub has been visited
   visitCount?: number;
+  // Card sizes: the map's mini card, the gallery card, and the viewer's
+  // full-size card. Without one, the card is the standard 320 × 480.
   small?: boolean;
   medium?: boolean;
+  full?: boolean;
+  // Shows the back of the card (history, distances, links)
+  flipped?: boolean;
+  onClick?: () => void;
   // Whether public/images holds a photo for this pub
   hasImage: boolean;
   selected?: boolean;
@@ -32,12 +37,6 @@ type SpoonCardProps = {
 const hasLink = (url: string) => Boolean(url) && url !== 'NONE';
 
 const SpoonCard = (props: SpoonCardProps) => {
-  const [flipped, setFlipped] = useState(false);
-  useEffect(() => {
-    if (!props.selected && flipped) {
-      setFlipped(false);
-    }
-  }, [props.selected, flipped]);
   const getCardClassName = () => {
     const rarity = props.rarity.toLocaleLowerCase();
     let classes = `spoon-card rarity-${rarity}`;
@@ -54,37 +53,29 @@ const SpoonCard = (props: SpoonCardProps) => {
       classes += ' medium';
     }
 
+    if (props.full) {
+      classes += ' full';
+    }
+
     if (props.selected) {
       classes += ' selected';
     }
 
-    if (flipped) {
+    if (props.flipped) {
       classes += ' is-flipped';
     }
 
     return classes;
   };
 
-  const flipCard = () => {
-    // Only flip when selected
-    if (props.selected) {
-      if (flipped) {
-        setFlipped(false);
-      } else {
-        setFlipped(true);
-      }
-    }
-  };
-
   return (
     <article
-      role="button"
       className={getCardClassName()}
       data-region={props.region.toLowerCase()}
-      onClick={flipCard}
+      onClick={props.onClick}
     >
       <div className="spoon-card__inner">
-        <div className="card-face card-face-front">
+        <div className="card-face card-face-front" aria-hidden={props.flipped}>
           <header className="card-header">
             <h2 className="card-title" title={props.name}>{props.name}</h2>
             {props.visited && <span className="visited-badge">Visited</span>}
@@ -152,7 +143,7 @@ const SpoonCard = (props: SpoonCardProps) => {
           )}
         </div>
 
-        <div className="card-face card-face-back">
+        <div className="card-face card-face-back" aria-hidden={!props.flipped}>
           <header className="card-header">
             <h2 className="card-title">{props.name}</h2>
             {props.visited && <span className="visited-badge">Visited</span>}

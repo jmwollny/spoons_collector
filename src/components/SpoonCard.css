@@ -149,6 +149,9 @@
   line-height: 1.5;
   color: var(--card-text-main);
   overflow-y: auto;
+  /* Lets the text shrink to the space available, so it scrolls rather
+     than running off the bottom of the card */
+  min-height: 0;
   padding-right: 6px;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
@@ -189,8 +192,22 @@
   min-height: 360px;
 }
 
+/* Gallery cards don't flip, so the front sits in the normal flow and the
+   card grows to fit its stats rather than clipping the last rows */
 .spoon-card.medium .spoon-card__inner {
-  min-height: 360px;
+  height: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.spoon-card.medium .card-face-front {
+  position: relative;
+  flex: 1;
+}
+
+.spoon-card.medium .card-face-back {
+  display: none;
 }
 
 .spoon-card.medium .card-art-frame {
@@ -350,6 +367,11 @@
   color: var(--card-text-muted);
   line-height: 1.3;
   min-height: 38px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .card-mint-mark {
@@ -448,14 +470,65 @@
   background: color-mix(in srgb, var(--card-border) 25%, transparent);
 }
 
-/* On phones the map is narrow: shrink the card so it doesn't cover the
-   selected pub, which sits in the middle of the map */
+/* ==========================================
+   Full-size card, shown in the card viewer
+   ========================================== */
+.spoon-card.full {
+  width: min(calc(100vw - 32px), 380px);
+  /* Leaves room for the two rows of buttons below */
+  height: min(calc(100vh - 170px), 620px);
+  height: min(calc(100dvh - 170px), 620px);
+  cursor: pointer;
+}
+
+/* The photo takes whatever height the stats leave */
+.spoon-card.full .card-art-frame {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 110px;
+}
+
+.spoon-card.full .card-title {
+  font-size: 1.2rem;
+}
+
+.spoon-card.full .stat-row {
+  font-size: 0.9rem;
+  padding: 5px 2px;
+}
+
+.spoon-card.full .card-back-text {
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.spoon-card.full .card-back-body {
+  justify-content: flex-start;
+}
+
+/* ==========================================
+   Phones
+   ========================================== */
 @media (max-width: 600px) {
+  /* The map shows a slim bar for the selected pub instead (see Map.css) */
   .spoon-card.small {
-    transform: scale(0.38);
+    display: none;
   }
 
-  .spoon-card.small:hover {
-    transform: scale(0.36);
+  /* Gallery cards fill the width of the screen */
+  .spoon-card.medium {
+    width: 100%;
+  }
+
+  .spoon-card.medium .card-art-frame {
+    height: 190px;
+  }
+
+  .spoon-card.medium .card-title {
+    font-size: 1.15rem;
+  }
+
+  .spoon-card.medium .stat-row {
+    font-size: 0.9rem;
   }
 }

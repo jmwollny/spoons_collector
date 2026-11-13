@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import spoons from '../assets/spoons_enriched.json';
 import { Map } from './components/Map';
@@ -16,6 +16,8 @@ import { RarityProgress } from './components/RarityProgress';
 import { RegionBreakdown } from './components/RegionBreakdown';
 import { BackupPanel } from './components/BackupPanel';
 import { VisitHistory } from './components/VisitHistory';
+import { CardViewer } from './components/CardViewer';
+import { SelectedPubBar } from './components/SelectedPubBar';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -95,6 +97,9 @@ function App() {
   // The visit being edited in the form, or null when adding a new one
   const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  // Whether the selected pub's card is open full size
+  const [isCardViewerOpen, setIsCardViewerOpen] = useState(false);
+  const mapRef = useRef<HTMLDivElement>(null);
   // The visit waiting for the user to confirm its deletion
   const [visitPendingDelete, setVisitPendingDelete] = useState<VisitEntry | null>(null);
   const [sortBy, setSortBy] = useState('name-asc');
@@ -261,6 +266,20 @@ function App() {
     setSelectedLocationId(locationId);
   };
 
+  // Selects a pub and opens its card full size
+  const openCard = (locationId: number) => {
+    setSelectedLocationId(locationId);
+    setIsCardViewerOpen(true);
+  };
+
+  const closeCardViewer = useCallback(() => setIsCardViewerOpen(false), []);
+
+  // Closes the card and brings the map, now centred on the pub, into view
+  const showSelectedOnMap = () => {
+    setIsCardViewerOpen(false);
+    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   useEffect(() => {
     if (!filteredLocations.some((location) => location.id === selectedLocationId)) {
       setSelectedLocationId(filteredLocations[0]?.id ?? locations[0]?.id ?? 0);
@@ -358,6 +377,35 @@ function App() {
             </div>
           </div>
 
+          {isCardViewerOpen && (
+            <CardViewer
+              pub={selectedLocation}
+              rating={getRating(selectedLocation.id)}
+              visitCount={getVisits(selectedLocation.id)}
+              date={getVisitDate(selectedLocation.id)}
+              distanceMiles={
+                userPosition
+                  ? distanceMiles(
+                      userPosition.lat,
+                      userPosition.lon,
+                      selectedLocation.lat,
+                      selectedLocation.lon,
+                    )
+                  : undefined
+              }
+              onAddVisit={() => {
+                setIsCardViewerOpen(false);
+                openAddVisit();
+              }}
+              onShowVisits={() => {
+                setIsCardViewerOpen(false);
+                setIsHistoryOpen(true);
+              }}
+              onShowOnMap={showSelectedOnMap}
+              onClose={closeCardViewer}
+            />
+          )}
+
           {isHistoryOpen && hasVisitsForSelectedLocation && (
             <VisitHistory
               pubName={selectedLocation.name}
@@ -423,7 +471,7 @@ function App() {
             </div>
           )}
 
-          <div className="map-viewport-wrapper">
+          <div className="map-viewport-wrapper" ref={mapRef}>
             <Map
               locations={filteredLocations}
               visitedLocationIds={visitedLocationIds}
@@ -431,9 +479,16 @@ function App() {
               onLocationSelect={setSelectedLocationId}
               initialBounds={initialMapBounds}
               userPosition={userPosition}
-            />
+            >
+              <SelectedPubBar
+                pub={selectedLocation}
+                visitCount={getVisits(selectedLocation.id)}
+                date={getVisitDate(selectedLocation.id)}
+                onOpen={() => setIsCardViewerOpen(true)}
+              />
+            </Map>
 
-            {/* <div className="map-card-overlay"> */}
+            {/* Hidden on phones, where the bar above shows instead */}
             <SpoonCard
               id={selectedLocation.id}
               name={selectedLocation.name}
@@ -451,8 +506,8 @@ function App() {
               secondMiles={selectedLocation.secondNeighborMiles}
               website={selectedLocation.website}
               menu={selectedLocation.menu}
+              onClick={() => setIsCardViewerOpen(true)}
             />
-            {/* </div> */}
           </div>
           <div className="hero-metrics">
             <div className="metric-card">
@@ -470,6 +525,7 @@ function App() {
           regions={regions}
           indexedVisits={indexedVisits}
           onSelectLocation={handleSelectLocation}
+          onOpenCard={openCard}
           selectedLocationId={selectedLocationId}
           searchTerm={searchTerm}
           selectedRegion={selectedRegion}

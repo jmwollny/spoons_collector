@@ -1,0 +1,100 @@
+/* Full-size card on top of the page */
+.card-viewer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(4px);
+  animation: card-viewer-fade 0.2s ease;
+}
+
+.card-viewer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-height: 100%;
+  animation: card-viewer-rise 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.card-viewer-close {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 10;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+.card-viewer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: min(calc(100vw - 32px), 380px);
+}
+
+.card-viewer-button {
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.card-viewer-button:hover,
+.card-viewer-button:focus-visible {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.card-viewer-button--primary {
+  /* A row of its own, so the buttons fit on the narrowest phones */
+  flex-basis: 100%;
+  border-color: transparent;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+}
+
+.card-viewer-button--primary:hover,
+.card-viewer-button--primary:focus-visible {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+@keyframes card-viewer-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes card-viewer-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-viewer-backdrop,
+  .card-viewer {
+    animation: none;
+  }
+}

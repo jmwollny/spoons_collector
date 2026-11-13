@@ -58,3 +58,100 @@
 .map-legend .spoon-marker.visited {
   background: #fff;
 }
+
+/* The map itself, with anything laid over it */
+.map-area {
+  position: relative;
+}
+
+/* ==========================================
+   Selected pub bar: replaces the mini card on phones
+   ========================================== */
+.map-pub-bar {
+  display: none;
+}
+
+@media (max-width: 600px) {
+  .map-pub-bar {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    /* Clears the OpenStreetMap credit in the bottom corner */
+    bottom: 22px;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px 6px 6px;
+    border: none;
+    border-left: 6px solid var(--bar-rarity, #64748b);
+    border-radius: 14px;
+    background: rgba(28, 28, 30, 0.94);
+    color: #f5f5f7;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(15, 23, 42, 0.35);
+  }
+
+  .map-pub-bar.rarity-uncommon { --bar-rarity: #10b981; }
+  .map-pub-bar.rarity-rare { --bar-rarity: #0284c7; }
+  .map-pub-bar.rarity-epic { --bar-rarity: #8b5cf6; }
+  .map-pub-bar.rarity-legendary { --bar-rarity: #f59e0b; }
+
+  .map-pub-bar-photo {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: #3a3a3c;
+  }
+
+  .map-pub-bar-text {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .map-pub-bar-name {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+
+  .map-pub-bar-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px 8px;
+    font-size: 0.78rem;
+    color: #aeaeaf;
+  }
+
+  .map-pub-bar-rarity {
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: var(--bar-rarity, #64748b);
+    color: #000;
+    font-weight: 800;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .map-pub-bar-visited {
+    color: #34d399;
+    font-weight: 700;
+  }
+
+  .map-pub-bar-open {
+    flex: 0 0 auto;
+    font-size: 1.3rem;
+    color: #aeaeaf;
+  }
+}

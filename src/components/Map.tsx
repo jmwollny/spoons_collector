@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
 import './Map.css';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 
 type Location = {
   id: number;
@@ -25,6 +25,8 @@ interface MapProps {
   initialBounds: L.LatLngBoundsExpression;
   // Where the user is, once they've used Near me
   userPosition?: { lat: number; lon: number } | null;
+  // Shown on top of the map, e.g. the selected pub's bar on phones
+  children?: ReactNode;
 }
 
 // Zoom used when a pub is selected: about a town's width
@@ -74,7 +76,7 @@ function MapContent({
   visitedLocationIds,
   selectedLocationId,
   onLocationSelect,
-}: Omit<MapProps, 'initialBounds' | 'userPosition'>) {
+}: Omit<MapProps, 'initialBounds' | 'userPosition' | 'children'>) {
   const map = useMap();
 
   const selectedLocation = locations.find(
@@ -147,31 +149,35 @@ export function Map({
   onLocationSelect,
   initialBounds,
   userPosition,
+  children,
 }: MapProps) {
   return (
     <div className="map-shell">
-      <MapContainer
-        bounds={initialBounds}
-        boundsOptions={{ padding: [16, 16] }}
-        scrollWheelZoom={false}
-        className="leaflet-map"
-      >
-        <MapContent
-          locations={locations}
-          visitedLocationIds={visitedLocationIds}
-          selectedLocationId={selectedLocationId}
-          onLocationSelect={onLocationSelect}
-        />
-        {userPosition && (
-          <CircleMarker
-            center={[userPosition.lat, userPosition.lon]}
-            radius={8}
-            pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
-          >
-            <Tooltip>You are here</Tooltip>
-          </CircleMarker>
-        )}
-      </MapContainer>
+      <div className="map-area">
+        <MapContainer
+          bounds={initialBounds}
+          boundsOptions={{ padding: [16, 16] }}
+          scrollWheelZoom={false}
+          className="leaflet-map"
+        >
+          <MapContent
+            locations={locations}
+            visitedLocationIds={visitedLocationIds}
+            selectedLocationId={selectedLocationId}
+            onLocationSelect={onLocationSelect}
+          />
+          {userPosition && (
+            <CircleMarker
+              center={[userPosition.lat, userPosition.lon]}
+              radius={8}
+              pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
+            >
+              <Tooltip>You are here</Tooltip>
+            </CircleMarker>
+          )}
+        </MapContainer>
+        {children}
+      </div>
       <ul className="map-legend" aria-label="Map key">
         {RARITY_LEGEND.map((rarity) => (
           <li key={rarity}>

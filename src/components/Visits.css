@@ -16,6 +16,13 @@
 
 .collection-search {
   flex: 1 1 220px;
+  min-width: 0;
+}
+
+/* Near me and the search box. On wide screens they sit in the toolbar's
+   own row of controls; on phones they get a row to themselves. */
+.collection-search-row {
+  display: contents;
 }
 
 .collection-filter {
@@ -70,7 +77,14 @@
   /* transition: transform 0.2s ease; */
 }
 
+/* Cards in the same row of the gallery are the same height */
+.visits-card-button > .spoon-card {
+  flex: 1;
+}
+
 .visits-card-button {
+  display: flex;
+  height: 100%;
   border: none;
   background: none;
   padding: 0;
@@ -113,4 +127,57 @@
   background: #fef2f2;
   color: #b91c1c;
   font-size: 0.92rem;
+}
+
+/* ==========================================
+   Phones
+   ========================================== */
+@media (max-width: 600px) {
+  .collection-gallery-card .section-heading h2 {
+    font-size: 1.3rem;
+  }
+
+  /* Search on the first row, the two filters side by side, sort below */
+  .collection-toolbar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.6rem;
+  }
+
+  .collection-search-row {
+    display: flex;
+    gap: 0.6rem;
+    grid-column: 1 / -1;
+  }
+
+  .collection-search {
+    flex: 1 1 0;
+  }
+
+  .collection-filter {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .collection-filter--sort {
+    grid-column: 1 / -1;
+  }
+
+  /* One full-width card per row, scrolling with the page rather than in
+     a box of its own */
+  .visits-cards-grid {
+    grid-template-columns: 1fr;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+    gap: 4px;
+  }
+
+  .gallery-card-wrapper {
+    padding: 0.35rem 0;
+  }
+
+  .visits-card-button:hover {
+    transform: none;
+  }
 }
