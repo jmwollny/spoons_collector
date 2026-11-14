@@ -5,7 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
 import './Map.css';
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Location = {
   id: number;
@@ -27,6 +27,13 @@ interface MapProps {
   userPosition?: { lat: number; lon: number } | null;
   // Shown on top of the map, e.g. the selected pub's bar on phones
   children?: ReactNode;
+  // Whether the map fills the screen
+  expanded: boolean;
+  onToggleExpanded: () => void;
+  // Near me, shown on the map while it fills the screen
+  onNearMe: () => void;
+  locating: boolean;
+  locationError: string | null;
 }
 
 // Zoom used when a pub is selected: about a town's width
@@ -71,13 +78,32 @@ const createClusterIcon = (cluster: L.MarkerCluster) => {
   });
 };
 
+type MapContentProps = Pick<
+  MapProps,
+  'locations' | 'visitedLocationIds' | 'selectedLocationId' | 'onLocationSelect' | 'userPosition' | 'expanded'
+>;
+
 function MapContent({
   locations,
   visitedLocationIds,
   selectedLocationId,
   onLocationSelect,
-}: Omit<MapProps, 'initialBounds' | 'userPosition' | 'children'>) {
+  userPosition,
+  expanded,
+}: MapContentProps) {
   const map = useMap();
+
+  // Leaflet needs telling when the map changes size. Scroll-wheel zoom is
+  // off on the page, where the wheel should scroll the page, but on when
+  // the map fills the screen and there's no page to scroll.
+  useEffect(() => {
+    map.invalidateSize();
+    if (expanded) {
+      map.scrollWheelZoom.enable();
+    } else {
+      map.scrollWheelZoom.disable();
+    }
+  }, [expanded, map]);
 
   const selectedLocation = locations.find(
     (location) => location.id === selectedLocationId,
@@ -106,6 +132,24 @@ function MapContent({
     centredOn.current = key;
     map.setView([selectedLat, selectedLon], PUB_ZOOM);
   }, [selectedLat, selectedLon, map]);
+
+  // After Near me, zoom to show both the user and the pub it picked.
+  // Declared after the effect above so this view wins when both change.
+  // A new position object arrives each time Near me is used.
+  useEffect(() => {
+    if (!userPosition || selectedLat === undefined || selectedLon === undefined) {
+      return;
+    }
+    map.fitBounds(
+      [
+        [userPosition.lat, userPosition.lon],
+        [selectedLat, selectedLon],
+      ],
+      { padding: [60, 60], maxZoom: 15 },
+    );
+    // Only when the position changes, not when the user picks another pub
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userPosition, map]);
 
   return (
     <>
@@ -150,9 +194,19 @@ export function Map({
   initialBounds,
   userPosition,
   children,
+  expanded,
+  onToggleExpanded,
+  onNearMe,
+  locating,
+  locationError,
 }: MapProps) {
+  // On phones the key folds away behind a button while the map fills the screen
+  const [isKeyOpen, setIsKeyOpen] = useState(false);
+  // The location error the user closed, so it stays closed until a new one
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
+
   return (
-    <div className="map-shell">
+    <div className={`map-shell ${expanded ? 'is-expanded' : ''} ${isKeyOpen ? 'key-open' : ''}`}>
       <div className="map-area">
         <MapContainer
           bounds={initialBounds}
@@ -165,6 +219,8 @@ export function Map({
             visitedLocationIds={visitedLocationIds}
             selectedLocationId={selectedLocationId}
             onLocationSelect={onLocationSelect}
+            userPosition={userPosition}
+            expanded={expanded}
           />
           {userPosition && (
             <CircleMarker
@@ -176,6 +232,54 @@ export function Map({
             </CircleMarker>
           )}
         </MapContainer>
+
+        <div className="map-controls">
+          <button
+            type="button"
+            className="map-control-button"
+            onClick={onToggleExpanded}
+            aria-label={expanded ? 'Shrink map' : 'Expand map to full screen'}
+            title={expanded ? 'Shrink map (Esc)' : 'Full screen'}
+          >
+            {expanded ? '✕' : '⛶'}
+          </button>
+          {expanded && (
+            <button
+              type="button"
+              className="map-control-button map-near-me"
+              onClick={onNearMe}
+              disabled={locating}
+              aria-label="Find the nearest pubs you haven't visited"
+            >
+              {locating ? 'Finding you…' : '📍 Near me'}
+            </button>
+          )}
+        </div>
+
+        {expanded && (
+          <button
+            type="button"
+            className="map-key-toggle"
+            onClick={() => setIsKeyOpen((open) => !open)}
+            aria-expanded={isKeyOpen}
+          >
+            Key
+          </button>
+        )}
+
+        {expanded && locationError && locationError !== dismissedError && (
+          <div className="map-toast" role="alert">
+            <span>{locationError}</span>
+            <button
+              type="button"
+              onClick={() => setDismissedError(locationError)}
+              aria-label="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         {children}
       </div>
       <ul className="map-legend" aria-label="Map key">

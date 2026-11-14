@@ -155,3 +155,176 @@
     color: #aeaeaf;
   }
 }
+
+/* ==========================================
+   Expand button, and Near me while expanded
+   ========================================== */
+.map-controls {
+  position: absolute;
+  /* Below Leaflet's + and − buttons */
+  top: 84px;
+  left: 10px;
+  z-index: 900;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Matches Leaflet's zoom buttons */
+.map-control-button {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 8px;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  background: #fff;
+  background-clip: padding-box;
+  color: #0f172a;
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.map-control-button:hover,
+.map-control-button:focus-visible {
+  background-color: #f4f4f4;
+}
+
+.map-near-me {
+  padding: 0 12px;
+  border: none;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+}
+
+.map-near-me:hover,
+.map-near-me:focus-visible {
+  background: linear-gradient(135deg, #1d4ed8, #1e40af);
+}
+
+.map-near-me:disabled {
+  opacity: 0.75;
+  cursor: progress;
+}
+
+/* Location errors, shown on the map while it fills the screen */
+.map-toast {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  z-index: 950;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 140px);
+  padding: 8px 10px 8px 14px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 0.88rem;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25);
+}
+
+.map-toast button {
+  flex: 0 0 auto;
+  border: none;
+  background: none;
+  color: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Only used on phones, while the map fills the screen */
+.map-key-toggle {
+  display: none;
+}
+
+/* ==========================================
+   The map filling the screen
+   ========================================== */
+.map-viewport-wrapper.is-expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  background: #fff;
+}
+
+.is-expanded .map-shell {
+  height: 100%;
+  border: none;
+  border-radius: 0;
+}
+
+.is-expanded .map-area,
+.is-expanded .leaflet-map {
+  height: 100%;
+}
+
+/* The key sits in a box in the bottom-left corner */
+.map-shell.is-expanded .map-legend {
+  position: absolute;
+  left: 10px;
+  bottom: 24px;
+  z-index: 900;
+  flex-direction: column;
+  border: 1px solid #dbeafe;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+}
+
+@media (max-width: 600px) {
+  /* Room for the phone's status bar and rounded corners */
+  .is-expanded .map-shell {
+    padding: env(safe-area-inset-top) env(safe-area-inset-right)
+      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    box-sizing: border-box;
+  }
+
+  .map-toast {
+    top: auto;
+    bottom: 100px;
+    max-width: calc(100% - 24px);
+  }
+
+  /* The key folds away behind a button in the top-right corner */
+  .map-shell.is-expanded .map-key-toggle {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 900;
+    display: block;
+    height: 34px;
+    padding: 0 12px;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+    background: #fff;
+    background-clip: padding-box;
+    color: #0f172a;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .map-shell.is-expanded .map-legend {
+    display: none;
+    top: 52px;
+    right: 10px;
+    left: auto;
+    bottom: auto;
+  }
+
+  .map-shell.is-expanded.key-open .map-legend {
+    display: flex;
+  }
+}

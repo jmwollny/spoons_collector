@@ -18,6 +18,7 @@ import { BackupPanel } from './components/BackupPanel';
 import { VisitHistory } from './components/VisitHistory';
 import { CardViewer } from './components/CardViewer';
 import { SelectedPubBar } from './components/SelectedPubBar';
+import { useBackButton } from './backButton';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -100,6 +101,8 @@ function App() {
   // Whether the selected pub's card is open full size
   const [isCardViewerOpen, setIsCardViewerOpen] = useState(false);
   const mapRef = useRef<HTMLDivElement>(null);
+  // Whether the map fills the screen
+  const [isMapExpanded, setIsMapExpanded] = useState(false);
   // The visit waiting for the user to confirm its deletion
   const [visitPendingDelete, setVisitPendingDelete] = useState<VisitEntry | null>(null);
   const [sortBy, setSortBy] = useState('name-asc');
@@ -274,10 +277,39 @@ function App() {
 
   const closeCardViewer = useCallback(() => setIsCardViewerOpen(false), []);
 
+  // Android's Back button shrinks the map rather than leaving the app
+  useBackButton(() => setIsMapExpanded(false), isMapExpanded);
+
+  // While the map fills the screen: Escape shrinks it, and the page behind
+  // it can't scroll
+  useEffect(() => {
+    if (!isMapExpanded) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      // Escape closes a dialog open on top of the map first
+      const dialogOpen = document.querySelector(
+        '.visit-form-modal-backdrop, .card-viewer-backdrop',
+      );
+      if (event.key === 'Escape' && !dialogOpen) {
+        setIsMapExpanded(false);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMapExpanded]);
+
   // Closes the card and brings the map, now centred on the pub, into view
   const showSelectedOnMap = () => {
     setIsCardViewerOpen(false);
-    mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!isMapExpanded) {
+      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
   };
 
   useEffect(() => {
@@ -471,7 +503,10 @@ function App() {
             </div>
           )}
 
-          <div className="map-viewport-wrapper" ref={mapRef}>
+          <div
+            className={`map-viewport-wrapper ${isMapExpanded ? 'is-expanded' : ''}`}
+            ref={mapRef}
+          >
             <Map
               locations={filteredLocations}
               visitedLocationIds={visitedLocationIds}
@@ -479,6 +514,11 @@ function App() {
               onLocationSelect={setSelectedLocationId}
               initialBounds={initialMapBounds}
               userPosition={userPosition}
+              expanded={isMapExpanded}
+              onToggleExpanded={() => setIsMapExpanded((expanded) => !expanded)}
+              onNearMe={handleNearMe}
+              locating={locating}
+              locationError={locationError}
             >
               <SelectedPubBar
                 pub={selectedLocation}

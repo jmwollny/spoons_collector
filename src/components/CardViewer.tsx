@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import SpoonCard from './SpoonCard';
 import type { PubLocation } from '../types';
 import './CardViewer.css';
+import { useBackButton } from '../backButton';
 
 type CardViewerProps = {
   pub: PubLocation;
@@ -38,6 +39,8 @@ export const CardViewer = ({
 }: CardViewerProps) => {
   const [flipped, setFlipped] = useState(false);
   const swipeStartY = useRef<number | null>(null);
+  // Android's Back button closes the card rather than leaving the app
+  useBackButton(onClose);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
