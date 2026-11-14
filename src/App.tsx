@@ -376,6 +376,24 @@ function App() {
     scrollToMap();
   };
 
+  /**
+   * Leaves browsing for crawl mode, with the map on the next stop not yet
+   * checked in at (the last stop if they all are). Clears the search and
+   * filters set while browsing, as crawl mode hides them.
+   */
+  const backToCrawl = () => {
+    if (!crawl) return;
+    const nextStop =
+      crawl.stops.find((stop) => !isStopDone(crawl, stop.pubId, indexedVisits)) ??
+      crawl.stops[crawl.stops.length - 1];
+    setIsBrowsingDuringCrawl(false);
+    setSearchTerm('');
+    setSelectedRegion('all');
+    setVisitFilter('all');
+    setSelectedLocationId(nextStop.pubId);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const showCrawlRoute = () => {
     setRouteFitKey((key) => key + 1);
     scrollToMap();
@@ -752,10 +770,7 @@ function App() {
                 }}
                 isFocused={isCrawlMode}
                 onBrowse={() => setIsBrowsingDuringCrawl(true)}
-                onBackToCrawl={() => {
-                  setIsBrowsingDuringCrawl(false);
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
+                onBackToCrawl={backToCrawl}
                 unlockedNow={unlockedNow}
               />
             )}
