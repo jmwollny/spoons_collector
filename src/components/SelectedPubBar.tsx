@@ -119,7 +119,9 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
           aria-label={
             trail.next
               ? `Next: ${trail.next.pub.name}, ${trail.next.pub.city}`
-              : 'No more pubs nearby'
+              : trail.mode === 'crawl'
+                ? 'Last stop on the crawl'
+                : 'No more pubs nearby'
           }
         >
           ›
@@ -148,7 +150,11 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
             onClick={openUnlessSwiped}
           />
           {(trail.next || trail.previous) && (
-            <p className="map-pub-sheet-next">Swipe sideways for nearby pubs</p>
+            <p className="map-pub-sheet-next">
+              {trail.mode === 'crawl'
+                ? 'Swipe sideways for the next stop on your crawl'
+                : 'Swipe sideways for nearby pubs'}
+            </p>
           )}
         </div>
       )}

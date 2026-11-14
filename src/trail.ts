@@ -4,7 +4,22 @@ import { distanceMiles } from './utils';
 
 type Trail = { ids: number[]; index: number };
 
-export type TrailStep = { pub: PubLocation; miles: number };
+export type TrailStep = {
+  pub: PubLocation;
+  miles: number;
+  // On a crawl: the stop's number, counting from 1
+  stopNumber?: number;
+};
+
+/** Previous and Next, for the arrows, swipes and arrow keys */
+export type PubTrail = {
+  // 'nearby' steps to the nearest pubs; 'crawl' follows the crawl's stops
+  mode: 'nearby' | 'crawl';
+  previous: TrailStep | null;
+  next: TrailStep | null;
+  goPrevious: () => void;
+  goNext: () => void;
+};
 
 /**
  * Previous and Next for stepping from pub to nearby pub.
@@ -23,7 +38,7 @@ export const usePubTrail = (
   candidates: PubLocation[],
   pubsById: Map<number, PubLocation>,
   select: (id: number) => void,
-) => {
+): PubTrail => {
   const [trail, setTrail] = useState<Trail>({ ids: [selectedId], index: 0 });
 
   // The trail only counts while it's at the selected pub; otherwise the
@@ -81,7 +96,48 @@ export const usePubTrail = (
     select(previous.pub.id);
   };
 
-  return { next, previous, goNext, goPrevious };
+  return { mode: 'nearby', next, previous, goNext, goPrevious };
 };
 
-export type PubTrail = ReturnType<typeof usePubTrail>;
+/**
+ * Previous and Next along a crawl's stops, in order. From a pub that isn't
+ * on the crawl, Next goes to the first stop not yet visited.
+ */
+export const crawlTrail = (
+  stopIds: number[],
+  // Stops already visited on the crawl
+  doneIds: Set<number>,
+  selectedId: number,
+  pubsById: Map<number, PubLocation>,
+  select: (id: number) => void,
+): PubTrail => {
+  const selected = pubsById.get(selectedId);
+  const index = stopIds.indexOf(selectedId);
+  const step = (stopIndex: number): TrailStep | null => {
+    const pub = pubsById.get(stopIds[stopIndex]);
+    if (!pub || !selected) return null;
+    return {
+      pub,
+      miles: distanceMiles(selected.lat, selected.lon, pub.lat, pub.lon),
+      stopNumber: stopIndex + 1,
+    };
+  };
+
+  let nextIndex: number;
+  if (index === -1) {
+    const firstToDo = stopIds.findIndex((id) => !doneIds.has(id));
+    nextIndex = firstToDo === -1 ? 0 : firstToDo;
+  } else {
+    nextIndex = index + 1;
+  }
+  const next = nextIndex < stopIds.length ? step(nextIndex) : null;
+  const previous = index > 0 ? step(index - 1) : null;
+
+  return {
+    mode: 'crawl',
+    next,
+    previous,
+    goNext: () => next && select(next.pub.id),
+    goPrevious: () => previous && select(previous.pub.id),
+  };
+};

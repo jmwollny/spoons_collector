@@ -23,7 +23,7 @@ import { isStopDone, loadCrawl, saveCrawl, type Crawl } from './crawl';
 import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import type { CrawlRoute } from './components/Map';
-import { usePubTrail } from './trail';
+import { crawlTrail, usePubTrail } from './trail';
 import { unlockedTitles } from './achievements';
 import { TrailNav } from './components/TrailNav';
 
@@ -309,7 +309,22 @@ function App() {
   };
 
   // Previous and Next nearest pub, following the search and filters
-  const trail = usePubTrail(selectedLocationId, filteredLocations, pubsById, selectAnyPub);
+  const nearbyTrail = usePubTrail(selectedLocationId, filteredLocations, pubsById, selectAnyPub);
+  // In crawl mode the arrows follow the crawl's stops in order instead
+  const trail =
+    isCrawlMode && crawl
+      ? crawlTrail(
+          crawl.stops.map((stop) => stop.pubId),
+          new Set(
+            crawl.stops
+              .filter((stop) => isStopDone(crawl, stop.pubId, indexedVisits))
+              .map((stop) => stop.pubId),
+          ),
+          selectedLocationId,
+          pubsById,
+          selectAnyPub,
+        )
+      : nearbyTrail;
 
   // ← and → step through nearby pubs, unless the user is typing, a form
   // or dialog is open, or they're panning the map with the keyboard
