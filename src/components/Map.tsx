@@ -1,10 +1,11 @@
 /// <reference types="leaflet.markercluster" />
-import { CircleMarker, MapContainer, Marker, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'react-leaflet-cluster/dist/assets/MarkerCluster.css';
 import './Map.css';
+import './Crawl.css';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 type Location = {
@@ -14,6 +15,13 @@ type Location = {
   lon: number;
   lat: number;
   rarity: string;
+};
+
+/** A crawl's route, ready to draw */
+export type CrawlRoute = {
+  // Where the crawl starts, when that isn't its first pub
+  start: { lat: number; lon: number; label: string } | null;
+  stops: Array<{ pubId: number; lat: number; lon: number; name: string; done: boolean }>;
 };
 
 interface MapProps {
@@ -34,6 +42,10 @@ interface MapProps {
   onNearMe: () => void;
   locating: boolean;
   locationError: string | null;
+  // The crawl under way, if any
+  crawlRoute: CrawlRoute | null;
+  // Changes whenever the map should zoom to show the whole crawl
+  routeFitKey: number;
 }
 
 // Zoom used when a pub is selected: about a town's width
@@ -77,6 +89,87 @@ const createClusterIcon = (cluster: L.MarkerCluster) => {
     iconSize: [size, size],
   });
 };
+
+/**
+ * Padding for zooming the map to fit a set of points, keeping clear of what
+ * sits on top of the map: the pub card in the top-right corner on wide
+ * screens, the pub bar along the bottom on phones.
+ */
+const fitPadding = (): L.FitBoundsOptions =>
+  window.matchMedia('(max-width: 600px)').matches
+    ? { paddingTopLeft: [40, 40], paddingBottomRight: [40, 100] }
+    : { paddingTopLeft: [50, 50], paddingBottomRight: [200, 50] };
+
+// Numbered crawl markers, shared like the pub markers
+const crawlIconCache = new globalThis.Map<string, L.DivIcon>();
+const getCrawlIcon = (label: string, kind: 'stop' | 'done' | 'start') => {
+  const key = `${kind}|${label}`;
+  let icon = crawlIconCache.get(key);
+  if (!icon) {
+    icon = L.divIcon({
+      className: 'crawl-marker-icon',
+      html: `<div class="crawl-marker is-${kind}">${label}</div>`,
+      iconSize: [26, 26],
+      iconAnchor: [13, 13],
+    });
+    crawlIconCache.set(key, icon);
+  }
+  return icon;
+};
+
+/** The crawl's route: a dashed line through numbered stops */
+function CrawlRouteLayer({
+  route,
+  fitKey,
+  onSelect,
+}: {
+  route: CrawlRoute;
+  fitKey: number;
+  onSelect: (pubId: number) => void;
+}) {
+  const map = useMap();
+  const points: Array<[number, number]> = [
+    ...(route.start ? [[route.start.lat, route.start.lon] as [number, number]] : []),
+    ...route.stops.map((stop) => [stop.lat, stop.lon] as [number, number]),
+  ];
+
+  // Zoom to the whole route when asked: on planning it, or Show route
+  useEffect(() => {
+    if (fitKey > 0 && points.length > 0) {
+      map.fitBounds(points, { ...fitPadding(), maxZoom: 15 });
+    }
+    // Only when asked, not whenever a stop is ticked off
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey, map]);
+
+  return (
+    <>
+      <Polyline
+        positions={points}
+        pathOptions={{ color: '#db2777', weight: 4, opacity: 0.8, dashArray: '8 8' }}
+        interactive={false}
+      />
+      {route.start && (
+        <Marker
+          position={[route.start.lat, route.start.lon]}
+          icon={getCrawlIcon('🏁', 'start')}
+          zIndexOffset={1900}
+          title={`Start: ${route.start.label}`}
+        />
+      )}
+      {route.stops.map((stop, index) => (
+        <Marker
+          key={stop.pubId}
+          position={[stop.lat, stop.lon]}
+          icon={getCrawlIcon(stop.done ? '✓' : String(index + 1), stop.done ? 'done' : 'stop')}
+          zIndexOffset={2000}
+          title={`${index + 1}. ${stop.name}`}
+          eventHandlers={{ click: () => onSelect(stop.pubId) }}
+        />
+      ))}
+    </>
+  );
+}
 
 type MapContentProps = Pick<
   MapProps,
@@ -145,7 +238,7 @@ function MapContent({
         [userPosition.lat, userPosition.lon],
         [selectedLat, selectedLon],
       ],
-      { padding: [60, 60], maxZoom: 15 },
+      { ...fitPadding(), maxZoom: 15 },
     );
     // Only when the position changes, not when the user picks another pub
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -199,6 +292,8 @@ export function Map({
   onNearMe,
   locating,
   locationError,
+  crawlRoute,
+  routeFitKey,
 }: MapProps) {
   // On phones the key folds away behind a button while the map fills the screen
   const [isKeyOpen, setIsKeyOpen] = useState(false);
@@ -222,6 +317,9 @@ export function Map({
             userPosition={userPosition}
             expanded={expanded}
           />
+          {crawlRoute && (
+            <CrawlRouteLayer route={crawlRoute} fitKey={routeFitKey} onSelect={onLocationSelect} />
+          )}
           {userPosition && (
             <CircleMarker
               center={[userPosition.lat, userPosition.lon]}

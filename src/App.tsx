@@ -19,6 +19,10 @@ import { VisitHistory } from './components/VisitHistory';
 import { CardViewer } from './components/CardViewer';
 import { SelectedPubBar } from './components/SelectedPubBar';
 import { useBackButton } from './backButton';
+import { isStopDone, loadCrawl, saveCrawl, type Crawl } from './crawl';
+import { CrawlPlanner } from './components/CrawlPlanner';
+import { CrawlPanel } from './components/CrawlPanel';
+import type { CrawlRoute } from './components/Map';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -57,6 +61,8 @@ const loadVisits = (): VisitEntry[] => {
     return id === undefined ? [] : [{ ...visit, locationId: id }];
   });
 };
+
+const pubsById = new globalThis.Map(locations.map((location) => [location.id, location]));
 
 const regions = Array.from(
   new Set(locations.map((location) => location.region)),
@@ -103,6 +109,13 @@ function App() {
   const mapRef = useRef<HTMLDivElement>(null);
   // Whether the map fills the screen
   const [isMapExpanded, setIsMapExpanded] = useState(false);
+  // The Spoons crawl under way, if any
+  const [crawl, setCrawl] = useState<Crawl | null>(() => loadCrawl(locations));
+  const [isCrawlPlannerOpen, setIsCrawlPlannerOpen] = useState(false);
+  const [isEndCrawlPending, setIsEndCrawlPending] = useState(false);
+  // Bumped to make the map zoom to the whole crawl; starts at 1 so a crawl
+  // under way is in view when the app opens
+  const [routeFitKey, setRouteFitKey] = useState(() => (crawl ? 1 : 0));
   // The visit waiting for the user to confirm its deletion
   const [visitPendingDelete, setVisitPendingDelete] = useState<VisitEntry | null>(null);
   const [sortBy, setSortBy] = useState('name-asc');
@@ -117,6 +130,10 @@ function App() {
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(visits));
   }, [visits]);
+
+  useEffect(() => {
+    saveCrawl(crawl);
+  }, [crawl]);
 
 
   const visitedLocationIds = useMemo(
@@ -269,6 +286,64 @@ function App() {
     setSelectedLocationId(locationId);
   };
 
+  // Selects a pub even if the search or filters hide it, by clearing them;
+  // otherwise the selection would jump straight back to a pub on the list.
+  // Used for crawl stops, which can be anywhere.
+  const selectAnyPub = (locationId: number) => {
+    if (!filteredLocations.some((location) => location.id === locationId)) {
+      setSearchTerm('');
+      setSelectedRegion('all');
+      setVisitFilter('all');
+    }
+    setSelectedLocationId(locationId);
+  };
+
+  const scrollToMap = () => {
+    if (!isMapExpanded) {
+      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleCrawlPlanned = (planned: Crawl) => {
+    setCrawl(planned);
+    setIsCrawlPlannerOpen(false);
+    selectAnyPub(planned.stops[0].pubId);
+    setRouteFitKey((key) => key + 1);
+    scrollToMap();
+  };
+
+  const showCrawlRoute = () => {
+    setRouteFitKey((key) => key + 1);
+    scrollToMap();
+  };
+
+  // Checking in at a stop opens the visit form for its pub
+  const checkInAtStop = (pubId: number) => {
+    selectAnyPub(pubId);
+    openAddVisit();
+  };
+
+  const crawlRoute = useMemo<CrawlRoute | null>(() => {
+    if (!crawl) return null;
+    return {
+      start: crawl.startIsPub
+        ? null
+        : { lat: crawl.startLat, lon: crawl.startLon, label: crawl.startLabel },
+      stops: crawl.stops.flatMap((stop) => {
+        const pub = pubsById.get(stop.pubId);
+        return pub
+          ? [{
+              pubId: pub.id,
+              lat: pub.lat,
+              lon: pub.lon,
+              name: pub.name,
+              done: isStopDone(crawl, pub.id, indexedVisits),
+            }]
+          : [];
+      }),
+    };
+  }, [crawl, indexedVisits]);
+
   // Selects a pub and opens its card full size
   const openCard = (locationId: number) => {
     setSelectedLocationId(locationId);
@@ -369,6 +444,13 @@ function App() {
               >
                 Visits ({selectedVisitCount})
               </button>
+              <button
+                type="button"
+                className="visit-form-close"
+                onClick={() => setIsCrawlPlannerOpen(true)}
+              >
+                🍺 Plan a crawl
+              </button>
 
               {selectedLocation && (
                 <div className={`selected-visit-details ${!hasVisitsForSelectedLocation ? 'is-unvisited' : ''}`}>
@@ -435,6 +517,32 @@ function App() {
               }}
               onShowOnMap={showSelectedOnMap}
               onClose={closeCardViewer}
+            />
+          )}
+
+          {isCrawlPlannerOpen && (
+            <CrawlPlanner
+              locations={locations}
+              visitedIds={visitedLocationIds}
+              selectedPub={selectedLocation}
+              today={getTodayDate()}
+              hasCrawl={crawl !== null}
+              onPlan={handleCrawlPlanned}
+              onClose={() => setIsCrawlPlannerOpen(false)}
+            />
+          )}
+
+          {isEndCrawlPending && (
+            <ConfirmDialog
+              title="End this crawl?"
+              message="The route will be cleared. Visits you've logged on the way are kept."
+              confirmLabel="End crawl"
+              variant="danger"
+              onConfirm={() => {
+                setCrawl(null);
+                setIsEndCrawlPending(false);
+              }}
+              onCancel={() => setIsEndCrawlPending(false)}
             />
           )}
 
@@ -511,7 +619,7 @@ function App() {
               locations={filteredLocations}
               visitedLocationIds={visitedLocationIds}
               selectedLocationId={selectedLocationId}
-              onLocationSelect={setSelectedLocationId}
+              onLocationSelect={selectAnyPub}
               initialBounds={initialMapBounds}
               userPosition={userPosition}
               expanded={isMapExpanded}
@@ -519,6 +627,8 @@ function App() {
               onNearMe={handleNearMe}
               locating={locating}
               locationError={locationError}
+              crawlRoute={crawlRoute}
+              routeFitKey={routeFitKey}
             >
               <SelectedPubBar
                 pub={selectedLocation}
@@ -549,6 +659,20 @@ function App() {
               onClick={() => setIsCardViewerOpen(true)}
             />
           </div>
+          {crawl && (
+            <CrawlPanel
+              crawl={crawl}
+              pubsById={pubsById}
+              indexedVisits={indexedVisits}
+              onSelectPub={(pubId) => {
+                selectAnyPub(pubId);
+                scrollToMap();
+              }}
+              onCheckIn={checkInAtStop}
+              onShowRoute={showCrawlRoute}
+              onEnd={() => setIsEndCrawlPending(true)}
+            />
+          )}
           <div className="hero-metrics">
             <div className="metric-card">
               <strong>{uniqueVisitedCount}</strong>
