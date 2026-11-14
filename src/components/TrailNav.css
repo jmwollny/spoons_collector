@@ -1,0 +1,56 @@
+.trail-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+.trail-nav button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.trail-nav button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Under the map's card: light buttons that stand out on the map */
+.trail-nav--map button {
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  background: rgba(255, 255, 255, 0.95);
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+}
+
+.trail-nav--map button:not(:disabled):hover,
+.trail-nav--map button:focus-visible {
+  background: #eff6ff;
+}
+
+/* Under the full-size card: matches the viewer's other buttons */
+.trail-nav--viewer {
+  width: min(calc(100vw - 32px), 380px);
+}
+
+.trail-nav--viewer button {
+  flex: 1;
+  height: 40px;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.trail-nav--viewer button:not(:disabled):hover,
+.trail-nav--viewer button:focus-visible {
+  background: rgba(255, 255, 255, 0.22);
+}

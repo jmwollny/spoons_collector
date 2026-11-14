@@ -23,6 +23,8 @@ import { isStopDone, loadCrawl, saveCrawl, type Crawl } from './crawl';
 import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import type { CrawlRoute } from './components/Map';
+import { usePubTrail } from './trail';
+import { TrailNav } from './components/TrailNav';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
@@ -298,6 +300,34 @@ function App() {
     setSelectedLocationId(locationId);
   };
 
+  // Previous and Next nearest pub, following the search and filters
+  const trail = usePubTrail(selectedLocationId, filteredLocations, pubsById, selectAnyPub);
+
+  // ← and → step through nearby pubs, unless the user is typing, a form
+  // or dialog is open, or they're panning the map with the keyboard
+  const trailRef = useRef(trail);
+  useEffect(() => {
+    trailRef.current = trail;
+  });
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+      const target = event.target as HTMLElement;
+      if (target.closest('input, select, textarea, [contenteditable="true"]')) return;
+      // On the map itself the arrows pan it; on a pub marker they step
+      if (target.closest('.leaflet-container') && !target.closest('.leaflet-marker-icon')) return;
+      if (document.querySelector('.visit-form-modal-backdrop')) return;
+      // Stops the map panning as well when a marker has focus
+      event.stopPropagation();
+      event.preventDefault();
+      if (event.key === 'ArrowRight') trailRef.current.goNext();
+      else trailRef.current.goPrevious();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, []);
+
   const scrollToMap = () => {
     if (!isMapExpanded) {
       mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -517,6 +547,7 @@ function App() {
               }}
               onShowOnMap={showSelectedOnMap}
               onClose={closeCardViewer}
+              trail={trail}
             />
           )}
 
@@ -634,6 +665,7 @@ function App() {
                 pub={selectedLocation}
                 visitCount={getVisits(selectedLocation.id)}
                 date={getVisitDate(selectedLocation.id)}
+                trail={trail}
                 onOpen={() => setIsCardViewerOpen(true)}
               />
             </Map>
@@ -651,6 +683,7 @@ function App() {
               visitCount={getVisits(selectedLocation.id)}
               date={getVisitDate(selectedLocationId)}
               small={true}
+              compact={true}
               hasImage={Boolean(selectedLocation.imgType)}
               nearestMiles={selectedLocation.nearestNeighborMiles}
               secondMiles={selectedLocation.secondNeighborMiles}
@@ -658,6 +691,9 @@ function App() {
               menu={selectedLocation.menu}
               onClick={() => setIsCardViewerOpen(true)}
             />
+            <div className="map-card-nav">
+              <TrailNav trail={trail} variant="map" />
+            </div>
           </div>
           {crawl && (
             <CrawlPanel

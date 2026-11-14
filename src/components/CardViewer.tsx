@@ -3,6 +3,8 @@ import SpoonCard from './SpoonCard';
 import type { PubLocation } from '../types';
 import './CardViewer.css';
 import { useBackButton } from '../backButton';
+import type { PubTrail } from '../trail';
+import { TrailNav } from './TrailNav';
 
 type CardViewerProps = {
   pub: PubLocation;
@@ -16,15 +18,21 @@ type CardViewerProps = {
   onShowVisits: () => void;
   onShowOnMap: () => void;
   onClose: () => void;
+  // Previous and Next nearest pub
+  trail: PubTrail;
 };
 
 // How far a downward swipe has to travel to close the viewer
 const SWIPE_CLOSE_PX = 90;
+// How far a sideways swipe has to travel to step to another pub
+const SWIPE_STEP_PX = 60;
 
 /**
  * One pub's card at full size, on top of the page. Tapping the card or
- * Flip turns it over to show the pub's full history. Escape, ✕, a tap
- * outside the card or a swipe down closes it.
+ * Flip turns it over to show the pub's full history. Swiping left or
+ * right (or the arrow keys) steps to the next or previous nearest pub,
+ * staying on the same side of the card. Escape, ✕, a tap outside the card
+ * or a swipe down closes it.
  */
 export const CardViewer = ({
   pub,
@@ -36,9 +44,12 @@ export const CardViewer = ({
   onShowVisits,
   onShowOnMap,
   onClose,
+  trail,
 }: CardViewerProps) => {
   const [flipped, setFlipped] = useState(false);
-  const swipeStartY = useRef<number | null>(null);
+  const swipeStart = useRef<{ x: number; y: number; inHistory: boolean } | null>(null);
+  // Set when a touch was a swipe, so the tap it ends in doesn't flip the card
+  const swiped = useRef(false);
   // Android's Back button closes the card rather than leaving the app
   useBackButton(onClose);
 
@@ -61,22 +72,40 @@ export const CardViewer = ({
   }, [onClose]);
 
   const onTouchStart = (event: React.TouchEvent) => {
-    // A swipe inside the history is the user scrolling it, not closing
     const target = event.target as HTMLElement;
-    swipeStartY.current = target.closest('.card-back-text')
-      ? null
-      : event.touches[0].clientY;
+    swiped.current = false;
+    swipeStart.current = {
+      x: event.touches[0].clientX,
+      y: event.touches[0].clientY,
+      // A vertical swipe inside the history is the user scrolling it
+      inHistory: Boolean(target.closest('.card-back-text')),
+    };
   };
 
   const onTouchEnd = (event: React.TouchEvent) => {
-    if (swipeStartY.current === null) {
+    const start = swipeStart.current;
+    swipeStart.current = null;
+    if (!start) {
       return;
     }
-    const travelled = event.changedTouches[0].clientY - swipeStartY.current;
-    swipeStartY.current = null;
-    if (travelled > SWIPE_CLOSE_PX) {
+    const dx = event.changedTouches[0].clientX - start.x;
+    const dy = event.changedTouches[0].clientY - start.y;
+    if (Math.abs(dx) > SWIPE_STEP_PX && Math.abs(dx) > Math.abs(dy)) {
+      swiped.current = true;
+      if (dx < 0) trail.goNext();
+      else trail.goPrevious();
+    } else if (!start.inHistory && dy > SWIPE_CLOSE_PX) {
+      swiped.current = true;
       onClose();
     }
+  };
+
+  const flip = () => {
+    if (swiped.current) {
+      swiped.current = false;
+      return;
+    }
+    setFlipped((current) => !current);
   };
 
   const visitLabel = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
@@ -123,8 +152,10 @@ export const CardViewer = ({
           website={pub.website}
           menu={pub.menu}
           flipped={flipped}
-          onClick={() => setFlipped((current) => !current)}
+          onClick={flip}
         />
+
+        <TrailNav trail={trail} variant="viewer" />
 
         <div className="card-viewer-actions">
           <button

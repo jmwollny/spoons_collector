@@ -223,7 +223,20 @@ function MapContent({
       return;
     }
     centredOn.current = key;
-    map.setView([selectedLat, selectedLon], PUB_ZOOM);
+    // Zoomed in already (e.g. stepping between nearby pubs): keep the
+    // user's zoom and just move. Otherwise zoom in to about a town.
+    const zoom = Math.max(map.getZoom(), PUB_ZOOM);
+    // On phones the pub sheet covers the bottom of the map, so centre the
+    // pub in the part that's still showing above it
+    const sheet = map.getContainer().parentElement?.querySelector<HTMLElement>('.map-pub-sheet');
+    const covered = sheet && sheet.offsetParent !== null ? sheet.offsetHeight + 22 : 0;
+    const point = map.project([selectedLat, selectedLon], zoom).add([0, covered / 2]);
+    const centre = map.unproject(point, zoom);
+    if (zoom === map.getZoom()) {
+      map.panTo(centre);
+    } else {
+      map.setView(centre, zoom);
+    }
   }, [selectedLat, selectedLon, map]);
 
   // After Near me, zoom to show both the user and the pub it picked.

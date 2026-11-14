@@ -17,6 +17,9 @@ type SpoonCardProps = {
   small?: boolean;
   medium?: boolean;
   full?: boolean;
+  // Just enough to say which pub this is: photo, name, rarity and town.
+  // Used on the map, where the visit date and rating show above it.
+  compact?: boolean;
   // Shows the back of the card (history, distances, links)
   flipped?: boolean;
   onClick?: () => void;
@@ -55,6 +58,10 @@ const SpoonCard = (props: SpoonCardProps) => {
 
     if (props.full) {
       classes += ' full';
+    }
+
+    if (props.compact) {
+      classes += ' compact';
     }
 
     if (props.selected) {
@@ -115,32 +122,31 @@ const SpoonCard = (props: SpoonCardProps) => {
                 <span className="stat-value">{formatMiles(props.distanceMiles)}</span>
               </div>
             )}
-            {(props.visitCount ?? 0) > 1 && (
+            {!props.compact && (props.visitCount ?? 0) > 1 && (
               <div className="stat-row">
                 <span className="stat-label">Visits</span>
                 <span className="stat-value">{props.visitCount}</span>
               </div>
             )}
-            <div className="stat-row">
-              <span className="stat-label">{(props.visitCount ?? 0) > 1 ? 'Last visit' : 'Visit date'}</span>
-              <span className="stat-value">{props.date || 'Not visited'}</span>
-            </div>
-            <div className="stat-row">
-              <span className="stat-label">Rating</span>
-              <StarRating
-                size={20}
-                disabled={true}
-                maxRating={3}
-                rating={props.rating}
-              />
-            </div>
+            {!props.compact && (
+              <>
+                <div className="stat-row">
+                  <span className="stat-label">{(props.visitCount ?? 0) > 1 ? 'Last visit' : 'Visit date'}</span>
+                  <span className="stat-value">{props.date || 'Not visited'}</span>
+                </div>
+                <div className="stat-row">
+                  <span className="stat-label">Rating</span>
+                  <StarRating
+                    size={20}
+                    disabled={true}
+                    maxRating={3}
+                    rating={props.rating}
+                  />
+                </div>
+              </>
+            )}
           </section>
-
-          {!props.medium && (
-            <footer className="card-footer">
-              <p className="card-flavor-text">{props.history}</p>
-            </footer>
-          )}
+          {/* The history is on the back of the card, in full */}
         </div>
 
         <div className="card-face card-face-back" aria-hidden={!props.flipped}>

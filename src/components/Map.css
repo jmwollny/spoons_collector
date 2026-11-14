@@ -65,14 +65,35 @@
 }
 
 /* ==========================================
-   Selected pub bar: replaces the mini card on phones
+   Selected pub sheet: replaces the mini card on phones
    ========================================== */
-.map-pub-bar {
+.map-pub-sheet {
   display: none;
 }
 
+/* Under the map's card on wide screens (hidden on phones) */
+.map-card-nav {
+  position: absolute;
+  right: 0.75rem;
+  /* The compact card is 400px tall, shown at half size */
+  top: calc(0.75rem + 200px + 8px);
+  z-index: 999;
+  /* The card's width at half size */
+  width: 160px;
+}
+
+.is-expanded .map-card-nav {
+  /* Under the card at full size */
+  top: calc(0.75rem + 400px + 10px);
+  width: 320px;
+}
+
 @media (max-width: 600px) {
-  .map-pub-bar {
+  .map-card-nav {
+    display: none;
+  }
+
+  .map-pub-sheet {
     position: absolute;
     left: 8px;
     right: 8px;
@@ -80,24 +101,93 @@
     bottom: 22px;
     z-index: 900;
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 10px 6px 6px;
-    border: none;
+    flex-direction: column;
+    max-height: calc(100% - 40px);
+    overflow-y: auto;
     border-left: 6px solid var(--bar-rarity, #64748b);
     border-radius: 14px;
-    background: rgba(28, 28, 30, 0.94);
+    background: rgba(28, 28, 30, 0.95);
     color: #f5f5f7;
-    font: inherit;
-    text-align: left;
-    cursor: pointer;
     box-shadow: 0 6px 18px rgba(15, 23, 42, 0.35);
   }
 
-  .map-pub-bar.rarity-uncommon { --bar-rarity: #10b981; }
-  .map-pub-bar.rarity-rare { --bar-rarity: #0284c7; }
-  .map-pub-bar.rarity-epic { --bar-rarity: #8b5cf6; }
-  .map-pub-bar.rarity-legendary { --bar-rarity: #f59e0b; }
+  /* Swipes on the bar and handle are for the sheet, not for scrolling the
+     page behind it */
+  .map-pub-sheet-handle,
+  .map-pub-bar {
+    touch-action: none;
+  }
+
+  .map-pub-sheet.rarity-uncommon { --bar-rarity: #10b981; }
+  .map-pub-sheet.rarity-rare { --bar-rarity: #0284c7; }
+  .map-pub-sheet.rarity-epic { --bar-rarity: #8b5cf6; }
+  .map-pub-sheet.rarity-legendary { --bar-rarity: #f59e0b; }
+
+  /* The grab handle along the top edge */
+  .map-pub-sheet-handle {
+    flex: 0 0 auto;
+    align-self: center;
+    width: 64px;
+    height: 16px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .map-pub-sheet-handle::before {
+    content: '';
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    top: 6px;
+    height: 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.4);
+  }
+
+  .map-pub-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 4px 6px;
+  }
+
+  .map-pub-bar-step {
+    flex: 0 0 32px;
+    height: 52px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f5f5f7;
+    font: inherit;
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .map-pub-bar-step:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .map-pub-bar-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
 
   .map-pub-bar-photo {
     flex: 0 0 auto;
@@ -149,10 +239,36 @@
     font-weight: 700;
   }
 
-  .map-pub-bar-open {
-    flex: 0 0 auto;
-    font-size: 1.3rem;
+  /* The card, once the sheet is pulled up */
+  .map-pub-sheet-card {
+    padding: 0 8px 10px;
+    animation: map-sheet-open 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* Short enough to leave some map showing above the sheet */
+  .map-pub-sheet-card .spoon-card.compact {
+    width: 100%;
+    height: 230px;
+  }
+
+  .is-expanded .map-pub-sheet-card .spoon-card.compact {
+    height: 400px;
+  }
+
+  .map-pub-sheet-next {
+    margin: 8px 4px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
     color: #aeaeaf;
+    font-size: 0.78rem;
+  }
+}
+
+@keyframes map-sheet-open {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
   }
 }
 
