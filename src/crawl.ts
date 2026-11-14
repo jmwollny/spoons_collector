@@ -44,6 +44,9 @@ export type Crawl = {
   // Whether the crawl starts at its first pub, rather than a place
   startIsPub: boolean;
   stops: CrawlStop[];
+  // Achievements already unlocked when the crawl started, so the summary at
+  // the end can show what the crawl unlocked (missing on older crawls)
+  unlockedAtStart?: string[];
 };
 
 export type CrawlOptions = {

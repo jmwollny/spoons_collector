@@ -18,7 +18,17 @@ type CrawlPanelProps = {
   onSelectPub: (pubId: number) => void;
   onCheckIn: (pubId: number) => void;
   onShowRoute: () => void;
+  // Ends the crawl, asking first
   onEnd: () => void;
+  // Ends a finished crawl, without asking
+  onFinish: () => void;
+  // Whether the page shows only the crawl (crawl mode), or everything
+  isFocused: boolean;
+  // Switch between crawl mode and the normal page, keeping the crawl
+  onBrowse: () => void;
+  onBackToCrawl: () => void;
+  // Titles of the achievements unlocked now
+  unlockedNow: string[];
 };
 
 /** The crawl under way: its stops in order, ticked off as they're visited */
@@ -30,6 +40,11 @@ export const CrawlPanel = ({
   onCheckIn,
   onShowRoute,
   onEnd,
+  onFinish,
+  isFocused,
+  onBrowse,
+  onBackToCrawl,
+  unlockedNow,
 }: CrawlPanelProps) => {
   const totalMiles = crawl.stops.reduce((sum, stop) => sum + stop.legMiles, 0);
   const first = crawl.stops[0];
@@ -41,6 +56,11 @@ export const CrawlPanel = ({
   const nextPubId = crawl.stops.find((stop) => !isStopDone(crawl, stop.pubId, indexedVisits))?.pubId;
   const goesLate = crawl.stops.some((stop) => isLate(stop.arrive));
   const warnings = crawlWarnings(crawl);
+  const isComplete = doneCount === crawl.stops.length;
+  // What the crawl unlocked, when we know what was unlocked at the start
+  const newAchievements = crawl.unlockedAtStart
+    ? unlockedNow.filter((title) => !crawl.unlockedAtStart?.includes(title))
+    : [];
 
   return (
     <section className="crawl-panel" aria-label="Your Spoons crawl">
@@ -58,12 +78,27 @@ export const CrawlPanel = ({
           </p>
         </div>
         <div className="crawl-panel-actions">
+          {isFocused ? (
+            <button type="button" className="visit-form-close" onClick={onBrowse}>
+              Browse all pubs
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="visit-form-close crawl-back-button"
+              onClick={onBackToCrawl}
+            >
+              Back to crawl
+            </button>
+          )}
           <button type="button" className="visit-form-close" onClick={onShowRoute}>
             Show route
           </button>
-          <button type="button" className="visit-form-close" onClick={onEnd}>
-            End
-          </button>
+          {!isComplete && (
+            <button type="button" className="visit-form-close" onClick={onEnd}>
+              End
+            </button>
+          )}
         </div>
       </header>
 
@@ -84,8 +119,32 @@ export const CrawlPanel = ({
         </p>
       ))}
 
-      {doneCount === crawl.stops.length && (
-        <p className="crawl-complete">🎉 Crawl complete! All {crawl.stops.length} pubs ticked off.</p>
+      {isComplete && (
+        <div className="crawl-complete" role="status">
+          <p className="crawl-complete-title">🎉 Crawl complete!</p>
+          <dl className="crawl-complete-stats">
+            <div>
+              <dt>Pubs</dt>
+              <dd>{crawl.stops.length}</dd>
+            </div>
+            <div>
+              <dt>Distance</dt>
+              <dd>{formatMiles(totalMiles)}</dd>
+            </div>
+            <div>
+              <dt>New to you</dt>
+              <dd>{newCount}</dd>
+            </div>
+          </dl>
+          {newAchievements.length > 0 && (
+            <p className="crawl-complete-achievements">
+              🏅 Unlocked: <strong>{newAchievements.join(', ')}</strong>
+            </p>
+          )}
+          <button type="button" className="crawl-finish-button" onClick={onFinish}>
+            Finish crawl
+          </button>
+        </div>
       )}
 
       <ol className="crawl-stops">

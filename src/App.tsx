@@ -24,6 +24,7 @@ import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import type { CrawlRoute } from './components/Map';
 import { usePubTrail } from './trail';
+import { unlockedTitles } from './achievements';
 import { TrailNav } from './components/TrailNav';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
@@ -115,6 +116,10 @@ function App() {
   const [crawl, setCrawl] = useState<Crawl | null>(() => loadCrawl(locations));
   const [isCrawlPlannerOpen, setIsCrawlPlannerOpen] = useState(false);
   const [isEndCrawlPending, setIsEndCrawlPending] = useState(false);
+  // During a crawl the page shows only the map and the crawl ("crawl
+  // mode"), unless the user chose to browse all the pubs meanwhile
+  const [isBrowsingDuringCrawl, setIsBrowsingDuringCrawl] = useState(false);
+  const isCrawlMode = crawl !== null && !isBrowsingDuringCrawl;
   // Bumped to make the map zoom to the whole crawl; starts at 1 so a crawl
   // under way is in view when the app opens
   const [routeFitKey, setRouteFitKey] = useState(() => (crawl ? 1 : 0));
@@ -229,10 +234,13 @@ function App() {
         }, null);
 
       setUserPosition(position);
-      setSortBy('distance');
-      setSearchTerm('');
-      setSelectedRegion('all');
-      setVisitFilter('unvisited');
+      // The list and its filters are hidden in crawl mode, so leave them be
+      if (!isCrawlMode) {
+        setSortBy('distance');
+        setSearchTerm('');
+        setSelectedRegion('all');
+        setVisitFilter('unvisited');
+      }
       if (nearest) {
         setSelectedLocationId(nearest.id);
       }
@@ -334,10 +342,21 @@ function App() {
     }
   };
 
+  const unlockedNow = useMemo(
+    () => unlockedTitles(locations, visitedLocationIds, indexedVisits),
+    [visitedLocationIds, indexedVisits],
+  );
+
   const handleCrawlPlanned = (planned: Crawl) => {
-    setCrawl(planned);
+    setCrawl({ ...planned, unlockedAtStart: unlockedNow });
     setIsCrawlPlannerOpen(false);
-    selectAnyPub(planned.stops[0].pubId);
+    setIsBrowsingDuringCrawl(false);
+    // Crawl mode hides the list, so clear its search and filters, which
+    // would otherwise hide pubs on the map with no visible reason
+    setSearchTerm('');
+    setSelectedRegion('all');
+    setVisitFilter('all');
+    setSelectedLocationId(planned.stops[0].pubId);
     setRouteFitKey((key) => key + 1);
     scrollToMap();
   };
@@ -452,7 +471,7 @@ function App() {
   };
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isCrawlMode ? 'is-crawl-mode' : ''}`}>
       <section className="dashboard-split">
         <div className="card map-card">
           <header className="hero-card">
@@ -478,6 +497,9 @@ function App() {
                 type="button"
                 className="visit-form-close"
                 onClick={() => setIsCrawlPlannerOpen(true)}
+                // One crawl at a time: end or finish this one first
+                disabled={isCrawlMode}
+                title={isCrawlMode ? 'Finish or end this crawl to plan another' : undefined}
               >
                 🍺 Plan a crawl
               </button>
@@ -571,6 +593,7 @@ function App() {
               variant="danger"
               onConfirm={() => {
                 setCrawl(null);
+                setIsBrowsingDuringCrawl(false);
                 setIsEndCrawlPending(false);
               }}
               onCancel={() => setIsEndCrawlPending(false)}
@@ -642,116 +665,135 @@ function App() {
             </div>
           )}
 
-          <div
-            className={`map-viewport-wrapper ${isMapExpanded ? 'is-expanded' : ''}`}
-            ref={mapRef}
-          >
-            <Map
-              locations={filteredLocations}
-              visitedLocationIds={visitedLocationIds}
-              selectedLocationId={selectedLocationId}
-              onLocationSelect={selectAnyPub}
-              initialBounds={initialMapBounds}
-              userPosition={userPosition}
-              expanded={isMapExpanded}
-              onToggleExpanded={() => setIsMapExpanded((expanded) => !expanded)}
-              onNearMe={handleNearMe}
-              locating={locating}
-              locationError={locationError}
-              crawlRoute={crawlRoute}
-              routeFitKey={routeFitKey}
+          <div className="map-crawl-layout">
+            <div
+              className={`map-viewport-wrapper ${isMapExpanded ? 'is-expanded' : ''}`}
+              ref={mapRef}
             >
-              <SelectedPubBar
-                pub={selectedLocation}
+              <Map
+                locations={filteredLocations}
+                visitedLocationIds={visitedLocationIds}
+                selectedLocationId={selectedLocationId}
+                onLocationSelect={selectAnyPub}
+                initialBounds={initialMapBounds}
+                userPosition={userPosition}
+                expanded={isMapExpanded}
+                onToggleExpanded={() => setIsMapExpanded((expanded) => !expanded)}
+                onNearMe={handleNearMe}
+                locating={locating}
+                locationError={locationError}
+                crawlRoute={crawlRoute}
+                routeFitKey={routeFitKey}
+              >
+                <SelectedPubBar
+                  pub={selectedLocation}
+                  visitCount={getVisits(selectedLocation.id)}
+                  date={getVisitDate(selectedLocation.id)}
+                  trail={trail}
+                  onOpen={() => setIsCardViewerOpen(true)}
+                />
+              </Map>
+
+              {/* Hidden on phones, where the bar above shows instead */}
+              <SpoonCard
+                id={selectedLocation.id}
+                name={selectedLocation.name}
+                city={selectedLocation.city}
+                region={selectedLocation.region}
+                rarity={selectedLocation.rarity}
+                rating={getRating(selectedLocationId)}
+                history={selectedLocation.history}
+                visited={getVisits(selectedLocation.id) > 0}
                 visitCount={getVisits(selectedLocation.id)}
-                date={getVisitDate(selectedLocation.id)}
-                trail={trail}
-                onOpen={() => setIsCardViewerOpen(true)}
+                date={getVisitDate(selectedLocationId)}
+                small={true}
+                compact={true}
+                hasImage={Boolean(selectedLocation.imgType)}
+                nearestMiles={selectedLocation.nearestNeighborMiles}
+                secondMiles={selectedLocation.secondNeighborMiles}
+                website={selectedLocation.website}
+                menu={selectedLocation.menu}
+                onClick={() => setIsCardViewerOpen(true)}
               />
-            </Map>
-
-            {/* Hidden on phones, where the bar above shows instead */}
-            <SpoonCard
-              id={selectedLocation.id}
-              name={selectedLocation.name}
-              city={selectedLocation.city}
-              region={selectedLocation.region}
-              rarity={selectedLocation.rarity}
-              rating={getRating(selectedLocationId)}
-              history={selectedLocation.history}
-              visited={getVisits(selectedLocation.id) > 0}
-              visitCount={getVisits(selectedLocation.id)}
-              date={getVisitDate(selectedLocationId)}
-              small={true}
-              compact={true}
-              hasImage={Boolean(selectedLocation.imgType)}
-              nearestMiles={selectedLocation.nearestNeighborMiles}
-              secondMiles={selectedLocation.secondNeighborMiles}
-              website={selectedLocation.website}
-              menu={selectedLocation.menu}
-              onClick={() => setIsCardViewerOpen(true)}
-            />
-            <div className="map-card-nav">
-              <TrailNav trail={trail} variant="map" />
+              <div className="map-card-nav">
+                <TrailNav trail={trail} variant="map" />
+              </div>
             </div>
+            {crawl && (
+              <CrawlPanel
+                crawl={crawl}
+                pubsById={pubsById}
+                indexedVisits={indexedVisits}
+                onSelectPub={(pubId) => {
+                  selectAnyPub(pubId);
+                  scrollToMap();
+                }}
+                onCheckIn={checkInAtStop}
+                onShowRoute={showCrawlRoute}
+                onEnd={() => setIsEndCrawlPending(true)}
+                onFinish={() => {
+                  setCrawl(null);
+                  setIsBrowsingDuringCrawl(false);
+                }}
+                isFocused={isCrawlMode}
+                onBrowse={() => setIsBrowsingDuringCrawl(true)}
+                onBackToCrawl={() => {
+                  setIsBrowsingDuringCrawl(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                unlockedNow={unlockedNow}
+              />
+            )}
           </div>
-          {crawl && (
-            <CrawlPanel
-              crawl={crawl}
-              pubsById={pubsById}
-              indexedVisits={indexedVisits}
-              onSelectPub={(pubId) => {
-                selectAnyPub(pubId);
-                scrollToMap();
-              }}
-              onCheckIn={checkInAtStop}
-              onShowRoute={showCrawlRoute}
-              onEnd={() => setIsEndCrawlPending(true)}
-            />
+          {!isCrawlMode && (
+            <div className="hero-metrics">
+              <div className="metric-card">
+                <strong>{uniqueVisitedCount}</strong>
+                <span>Visited Spoons</span>
+              </div>
+              <div className="metric-card">
+                <strong>{completionPercentage}%</strong>
+                <span>Completion</span>
+              </div>
+            </div>
           )}
-          <div className="hero-metrics">
-            <div className="metric-card">
-              <strong>{uniqueVisitedCount}</strong>
-              <span>Visited Spoons</span>
-            </div>
-            <div className="metric-card">
-              <strong>{completionPercentage}%</strong>
-              <span>Completion</span>
-            </div>
-          </div>
         </div>
-        <Visits
-          locations={filteredLocations}
-          regions={regions}
-          indexedVisits={indexedVisits}
-          onSelectLocation={handleSelectLocation}
-          onOpenCard={openCard}
-          selectedLocationId={selectedLocationId}
-          searchTerm={searchTerm}
-          selectedRegion={selectedRegion}
-          visitFilter={visitFilter}
-          onSearchChange={setSearchTerm}
-          onRegionChange={setSelectedRegion}
-          onVisitFilterChange={setVisitFilter}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          userPosition={userPosition}
-          onNearMe={handleNearMe}
-          locating={locating}
-          locationError={locationError}
-        />
+        {!isCrawlMode && (
+          <Visits
+            locations={filteredLocations}
+            regions={regions}
+            indexedVisits={indexedVisits}
+            onSelectLocation={handleSelectLocation}
+            onOpenCard={openCard}
+            selectedLocationId={selectedLocationId}
+            searchTerm={searchTerm}
+            selectedRegion={selectedRegion}
+            visitFilter={visitFilter}
+            onSearchChange={setSearchTerm}
+            onRegionChange={setSelectedRegion}
+            onVisitFilterChange={setVisitFilter}
+            sortBy={sortBy}
+            onSortChange={setSortBy}
+            userPosition={userPosition}
+            onNearMe={handleNearMe}
+            locating={locating}
+            locationError={locationError}
+          />
+        )}
       </section>
 
-      <section className="progress-grid">
-        <Achievements
-          locations={locations}
-          visitedLocationIds={visitedLocationIds}
-          indexedVisits={indexedVisits}
-        />
-        <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
-        <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
-        <BackupPanel visits={visits} onVisitsChange={setVisits} today={getTodayDate()} />
-      </section>
+      {!isCrawlMode && (
+        <section className="progress-grid">
+          <Achievements
+            locations={locations}
+            visitedLocationIds={visitedLocationIds}
+            indexedVisits={indexedVisits}
+          />
+          <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
+          <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
+          <BackupPanel visits={visits} onVisitsChange={setVisits} today={getTodayDate()} />
+        </section>
+      )}
     </div>
   );
 }

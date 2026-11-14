@@ -186,6 +186,14 @@ function MapContent({
 }: MapContentProps) {
   const map = useMap();
 
+  // Leaflet only notices the window resizing, not the map itself (e.g. the
+  // page switching to crawl mode and making it bigger), so watch it
+  useEffect(() => {
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(map.getContainer());
+    return () => observer.disconnect();
+  }, [map]);
+
   // Leaflet needs telling when the map changes size. Scroll-wheel zoom is
   // off on the page, where the wheel should scroll the page, but on when
   // the map fills the screen and there's no page to scroll.
