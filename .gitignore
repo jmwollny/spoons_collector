@@ -42,3 +42,5 @@ assets/images_original/
 
 # Local backups of earlier datasets and unused photos
 archived/
+
+coverage/
