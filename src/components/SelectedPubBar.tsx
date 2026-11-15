@@ -1,7 +1,9 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import type { PubLocation } from '../types';
 import type { PubTrail } from '../trail';
+import { useSwipe } from '../hooks/useSwipe';
 import SpoonCard from './SpoonCard';
+import { PubBarInfo } from './sheet/PubBarInfo';
 
 type SelectedPubBarProps = {
   pub: PubLocation;
@@ -12,58 +14,42 @@ type SelectedPubBarProps = {
   onOpen: () => void;
 };
 
-// How far a finger has to travel for a swipe
-const SWIPE_PX = 40;
-
 /**
  * The selected pub as a pull-up sheet along the bottom of the map, shown
  * on phones instead of the mini card, which is too small to read there.
  *
  * - Closed, it's a slim bar. Swipe it up, or tap the handle, to pull up
  *   the pub's card; swipe down to put it away.
- * - ‹ and ›, or swiping the bar left and right, step to nearby pubs.
+ * - ‹ and ›, or swiping the bar left and right, step to other pubs.
  * - Tapping the bar or the card opens the full-size card.
  */
 export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: SelectedPubBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const touchStart = useRef<{ x: number; y: number } | null>(null);
-  // Set when a touch turned out to be a swipe, so the tap that follows
-  // it doesn't also open the card
-  const swiped = useRef(false);
+  const { touchHandlers, wasSwipe } = useSwipe(
+    {
+      onLeft: trail.goNext,
+      onRight: trail.goPrevious,
+      onUp: () => setIsOpen(true),
+      onDown: () => setIsOpen(false),
+    },
+    { horizontalPx: 40, verticalPx: 40 },
+  );
 
-  const onTouchStart = (event: React.TouchEvent) => {
-    const touch = event.touches[0];
-    touchStart.current = { x: touch.clientX, y: touch.clientY };
-    swiped.current = false;
-  };
-
-  const onTouchEnd = (event: React.TouchEvent) => {
-    const start = touchStart.current;
-    touchStart.current = null;
-    if (!start) return;
-    const touch = event.changedTouches[0];
-    const dx = touch.clientX - start.x;
-    const dy = touch.clientY - start.y;
-    if (Math.abs(dx) > SWIPE_PX && Math.abs(dx) > Math.abs(dy)) {
-      swiped.current = true;
-      if (dx < 0) trail.goNext();
-      else trail.goPrevious();
-    } else if (Math.abs(dy) > SWIPE_PX) {
-      swiped.current = true;
-      setIsOpen(dy < 0);
-    }
-  };
-
+  // A tap opens the full-size card, unless it ended a swipe
   const openUnlessSwiped = () => {
-    if (!swiped.current) onOpen();
-    swiped.current = false;
+    if (!wasSwipe()) onOpen();
   };
+
+  const nextLabel = trail.next
+    ? `Next: ${trail.next.pub.name}, ${trail.next.pub.city}`
+    : trail.mode === 'crawl'
+      ? 'Last stop on the crawl'
+      : 'No more pubs nearby';
 
   return (
     <div
       className={`map-pub-sheet rarity-${pub.rarity.toLowerCase()} ${isOpen ? 'is-open' : ''}`}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
+      {...touchHandlers}
     >
       <button
         type="button"
@@ -90,25 +76,7 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
           onClick={openUnlessSwiped}
           aria-label={`Open the card for ${pub.name}`}
         >
-          {pub.imgType ? (
-            <img className="map-pub-bar-photo" src={`/images/${pub.id}.webp`} alt="" />
-          ) : (
-            <span className="map-pub-bar-photo" />
-          )}
-          <span className="map-pub-bar-text">
-            <span className="map-pub-bar-name">{pub.name}</span>
-            <span className="map-pub-bar-meta">
-              <span className="map-pub-bar-rarity">{pub.rarity}</span>
-              <span>{pub.city}</span>
-              {visitCount > 0 ? (
-                <span className="map-pub-bar-visited">
-                  ✓ {visitCount > 1 ? `${visitCount} visits` : date}
-                </span>
-              ) : (
-                <span>Not visited</span>
-              )}
-            </span>
-          </span>
+          <PubBarInfo pub={pub} visitCount={visitCount} date={date} />
         </button>
 
         <button
@@ -116,13 +84,7 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
           className="map-pub-bar-step"
           onClick={trail.goNext}
           disabled={!trail.next}
-          aria-label={
-            trail.next
-              ? `Next: ${trail.next.pub.name}, ${trail.next.pub.city}`
-              : trail.mode === 'crawl'
-                ? 'Last stop on the crawl'
-                : 'No more pubs nearby'
-          }
+          aria-label={nextLabel}
         >
           ›
         </button>

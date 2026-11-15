@@ -16,13 +16,8 @@ import { useLiveArrival } from './hooks/useLiveArrival';
 import { useMapExpanded } from './hooks/useMapExpanded';
 import { useActiveTrail } from './hooks/useActiveTrail';
 import { Map } from './components/Map';
-import SpoonCard from './components/SpoonCard';
 import { Visits } from './components/Visits';
 import { ConfirmDialog } from './components/ConfirmDialog';
-import { Achievements } from './components/Achievements';
-import { RarityProgress } from './components/RarityProgress';
-import { RegionBreakdown } from './components/RegionBreakdown';
-import { BackupPanel } from './components/BackupPanel';
 import { BackupReminder } from './components/BackupReminder';
 import { VisitHistory } from './components/VisitHistory';
 import { VisitFormModal } from './components/VisitFormModal';
@@ -34,7 +29,8 @@ import { VisitMetrics } from './components/VisitMetrics';
 import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import { ArrivalBanner } from './components/ArrivalBanner';
-import { TrailNav } from './components/TrailNav';
+import { MapPubCard } from './components/MapPubCard';
+import { ProgressSection } from './components/ProgressSection';
 
 function App({ data }: { data: PubData }) {
   const { locations, pubsById, regions, initialMapBounds } = data;
@@ -317,30 +313,12 @@ function App({ data }: { data: PubData }) {
                 />
               </Map>
 
-              {/* Hidden on phones, where the bar above shows instead */}
-              <SpoonCard
-                id={selectedPub.id}
-                name={selectedPub.name}
-                city={selectedPub.city}
-                region={selectedPub.region}
-                rarity={selectedPub.rarity}
-                rating={selectedStats.rating}
-                history={selectedPub.history}
-                visited={selectedStats.count > 0}
-                visitCount={selectedStats.count}
-                date={selectedStats.date}
-                small={true}
-                compact={true}
-                hasImage={Boolean(selectedPub.imgType)}
-                nearestMiles={selectedPub.nearestNeighborMiles}
-                secondMiles={selectedPub.secondNeighborMiles}
-                website={selectedPub.website}
-                menu={selectedPub.menu}
-                onClick={() => setIsCardViewerOpen(true)}
+              <MapPubCard
+                pub={selectedPub}
+                stats={selectedStats}
+                trail={trail}
+                onOpen={() => setIsCardViewerOpen(true)}
               />
-              <div className="map-card-nav">
-                <TrailNav trail={trail} variant="map" />
-              </div>
             </div>
 
             {crawl.crawl && (
@@ -396,23 +374,17 @@ function App({ data }: { data: PubData }) {
       </section>
 
       {!isCrawlMode && (
-        <section className="progress-grid">
-          <Achievements
-            locations={locations}
-            visitedLocationIds={visitedLocationIds}
-            indexedVisits={indexedVisits}
-          />
-          <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
-          <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
-          <BackupPanel
-            visits={visits}
-            onVisitsChange={visitsApi.setVisits}
-            crawl={crawl.crawl}
-            prepareCrawl={(value) => sanitiseCrawl(value, locations)}
-            onCrawlRestore={crawl.restore}
-            backup={backup}
-          />
-        </section>
+        <ProgressSection
+          locations={locations}
+          visits={visits}
+          visitedLocationIds={visitedLocationIds}
+          indexedVisits={indexedVisits}
+          onVisitsChange={visitsApi.setVisits}
+          crawl={crawl.crawl}
+          prepareCrawl={(value) => sanitiseCrawl(value, locations)}
+          onCrawlRestore={crawl.restore}
+          backup={backup}
+        />
       )}
     </div>
   );

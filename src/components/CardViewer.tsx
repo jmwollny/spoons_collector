@@ -1,11 +1,13 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import SpoonCard from './SpoonCard';
 import type { PubLocation } from '../types';
-import './CardViewer.css';
+import type { PubTrail } from '../trail';
 import { useDismiss } from '../hooks/useDismiss';
 import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
-import type { PubTrail } from '../trail';
+import { useSwipe } from '../hooks/useSwipe';
 import { TrailNav } from './TrailNav';
+import { CardViewerActions } from './viewer/CardViewerActions';
+import './CardViewer.css';
 
 type CardViewerProps = {
   pub: PubLocation;
@@ -23,17 +25,12 @@ type CardViewerProps = {
   trail: PubTrail;
 };
 
-// How far a downward swipe has to travel to close the viewer
-const SWIPE_CLOSE_PX = 90;
-// How far a sideways swipe has to travel to step to another pub
-const SWIPE_STEP_PX = 60;
-
 /**
  * One pub's card at full size, on top of the page. Tapping the card or
- * Flip turns it over to show the pub's full history. Swiping left or
- * right (or the arrow keys) steps to the next or previous nearest pub,
- * staying on the same side of the card. Escape, ✕, a tap outside the card
- * or a swipe down closes it.
+ * History turns it over to show the pub's full history. Swiping left or
+ * right (or the arrow keys) steps to the next or previous pub, staying on
+ * the same side of the card. Escape, Back, ✕, a tap outside the card or a
+ * swipe down closes it.
  */
 export const CardViewer = ({
   pub,
@@ -48,61 +45,22 @@ export const CardViewer = ({
   trail,
 }: CardViewerProps) => {
   const [flipped, setFlipped] = useState(false);
-  const swipeStart = useRef<{ x: number; y: number; inHistory: boolean } | null>(null);
-  // Set when a touch was a swipe, so the tap it ends in doesn't flip the card
-  const swiped = useRef(false);
 
   // Escape and Android's Back button close the card; the page behind
   // can't scroll while it's open
   useDismiss(onClose);
   useBodyScrollLock();
 
-  const onTouchStart = (event: React.TouchEvent) => {
-    const target = event.target as HTMLElement;
-    swiped.current = false;
-    swipeStart.current = {
-      x: event.touches[0].clientX,
-      y: event.touches[0].clientY,
-      // A vertical swipe inside the history is the user scrolling it
-      inHistory: Boolean(target.closest('.card-back-text')),
-    };
-  };
+  const { touchHandlers, wasSwipe } = useSwipe(
+    { onLeft: trail.goNext, onRight: trail.goPrevious, onDown: onClose },
+    // A vertical swipe inside the history is the user scrolling it
+    { horizontalPx: 60, verticalPx: 90, ignoreVerticalWithin: '.card-back-text' },
+  );
 
-  const onTouchEnd = (event: React.TouchEvent) => {
-    const start = swipeStart.current;
-    swipeStart.current = null;
-    if (!start) {
-      return;
-    }
-    const dx = event.changedTouches[0].clientX - start.x;
-    const dy = event.changedTouches[0].clientY - start.y;
-    if (Math.abs(dx) > SWIPE_STEP_PX && Math.abs(dx) > Math.abs(dy)) {
-      swiped.current = true;
-      if (dx < 0) trail.goNext();
-      else trail.goPrevious();
-    } else if (!start.inHistory && dy > SWIPE_CLOSE_PX) {
-      swiped.current = true;
-      onClose();
-    }
-  };
-
-  const flip = () => {
-    if (swiped.current) {
-      swiped.current = false;
-      return;
-    }
-    setFlipped((current) => !current);
-  };
-
-  const visitLabel = visitCount === 1 ? '1 visit' : `${visitCount} visits`;
+  const toggleFlip = () => setFlipped((current) => !current);
 
   return (
-    <div
-      className="card-viewer-backdrop"
-      onClick={onClose}
-      onTouchStart={onTouchStart}
-      onTouchEnd={onTouchEnd}
-    >
+    <div className="card-viewer-backdrop" onClick={onClose} {...touchHandlers}>
       <div
         className="card-viewer"
         role="dialog"
@@ -110,12 +68,7 @@ export const CardViewer = ({
         aria-label={pub.name}
         onClick={(event) => event.stopPropagation()}
       >
-        <button
-          type="button"
-          className="card-viewer-close"
-          onClick={onClose}
-          aria-label="Close"
-        >
+        <button type="button" className="card-viewer-close" onClick={onClose} aria-label="Close">
           ✕
         </button>
 
@@ -138,35 +91,22 @@ export const CardViewer = ({
           website={pub.website}
           menu={pub.menu}
           flipped={flipped}
-          onClick={flip}
+          // A tap flips the card, unless it ended a swipe
+          onClick={() => {
+            if (!wasSwipe()) toggleFlip();
+          }}
         />
 
         <TrailNav trail={trail} variant="viewer" />
 
-        <div className="card-viewer-actions">
-          <button
-            type="button"
-            className="card-viewer-button"
-            onClick={() => setFlipped((current) => !current)}
-          >
-            {flipped ? '↺ Front' : '↻ History'}
-          </button>
-          <button type="button" className="card-viewer-button" onClick={onShowOnMap}>
-            🗺 Map
-          </button>
-          {visitCount > 0 && (
-            <button type="button" className="card-viewer-button" onClick={onShowVisits}>
-              {visitLabel}
-            </button>
-          )}
-          <button
-            type="button"
-            className="card-viewer-button card-viewer-button--primary"
-            onClick={onAddVisit}
-          >
-            + Add visit
-          </button>
-        </div>
+        <CardViewerActions
+          flipped={flipped}
+          onFlip={toggleFlip}
+          onShowOnMap={onShowOnMap}
+          visitCount={visitCount}
+          onShowVisits={onShowVisits}
+          onAddVisit={onAddVisit}
+        />
       </div>
     </div>
   );

@@ -262,6 +262,41 @@ const CLOSED_FROM = DAY + 2 * 60;
 const LONG_WALK_MILES = 8;
 const LONG_WALK_LEG_MILES = 3;
 
+/** A crawl's numbers, as the crawl panel shows them */
+export const summariseCrawl = (
+  crawl: Crawl,
+  indexedVisits: Record<number, VisitEntry[]>,
+  // Titles of the achievements unlocked now
+  unlockedNow: string[],
+) => {
+  const first = crawl.stops[0];
+  const last = crawl.stops[crawl.stops.length - 1];
+  const finish = last.arrive + crawl.stayMinutes;
+  const doneIds = new Set(
+    crawl.stops.filter((stop) => isStopDone(crawl, stop.pubId, indexedVisits)).map((stop) => stop.pubId),
+  );
+  return {
+    totalMiles: crawl.stops.reduce((sum, stop) => sum + stop.legMiles, 0),
+    start: first.arrive,
+    finish,
+    durationMinutes: finish - first.arrive,
+    newCount: crawl.stops.filter((stop) => stop.wasNew).length,
+    doneIds,
+    doneCount: doneIds.size,
+    isComplete: doneIds.size === crawl.stops.length,
+    // The first stop not yet visited
+    nextPubId: crawl.stops.find((stop) => !doneIds.has(stop.pubId))?.pubId,
+    goesLate: crawl.stops.some((stop) => isLate(stop.arrive)),
+    warnings: crawlWarnings(crawl),
+    // What the crawl unlocked, when we know what was unlocked at the start
+    newAchievements: crawl.unlockedAtStart
+      ? unlockedNow.filter((title) => !crawl.unlockedAtStart?.includes(title))
+      : [],
+  };
+};
+
+export type CrawlSummary = ReturnType<typeof summariseCrawl>;
+
 /** Whether a stop is reached late at night, when the pub may be closing */
 export const isLate = (arrive: number) => arrive >= LATE_FROM && arrive < DAY + 6 * 60;
 

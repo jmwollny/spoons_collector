@@ -31,12 +31,15 @@ The repository holds the code and the OpenStreetMap-derived pub list, but **not*
 
 ### Tests
 
-The logic that's easy to get subtly wrong (crawl planning, Previous and Next, arrival detection, saving visits, backups, rarity) has tests:
+Every component, hook and module has tests (Vitest and Testing Library), from the crawl planner's maths to clicking through the app: logging and editing visits, filters, Near me, crawls, live location and backups.
 
 ```bash
 npm test             # run once
 npm run test:watch   # rerun on every change
+npm run coverage     # with a coverage report (also written to coverage/)
 ```
+
+Tests live next to what they test (`Visits.tsx` → `Visits.test.tsx`). Shared fixtures, browser stand-ins and a stand-in for the Leaflet map are in [src/test/](src/test/).
 
 GitHub Actions runs the lint, tests and build on every push ([.github/workflows/ci.yml](.github/workflows/ci.yml)). The scraped pub data isn't in the repo, so CI uses [assets/spoons_sample.json](assets/spoons_sample.json), a few made-up pubs in the same format. You can do the same to try the app without running the pipeline:
 

@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -27,4 +28,13 @@ const preloadPubData = (): Plugin => ({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), preloadPubData()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['src/test/setup.ts'],
+    coverage: {
+      // Every source file, not just those the tests happen to import
+      include: ['src/**/*.{ts,tsx}', 'calc-rarity.js'],
+      exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/types/**', 'src/**/*.d.ts'],
+    },
+  },
 })

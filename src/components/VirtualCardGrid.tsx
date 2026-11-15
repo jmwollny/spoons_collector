@@ -1,14 +1,7 @@
-import {
-  Fragment,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from 'react';
+import { Fragment, useEffect, useRef, type ReactNode } from 'react';
 import { useVirtualizer, useWindowVirtualizer, type Virtualizer } from '@tanstack/react-virtual';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useContentWidth, usePageOffset } from '../hooks/useElementMeasurements';
 import './VirtualCardGrid.css';
 
 type VirtualCardGridProps<T> = {
@@ -41,20 +34,6 @@ export function VirtualCardGrid<T>(props: VirtualCardGridProps<T>) {
   // Separate components, as the two kinds of scrolling need different hooks
   return scrollsWithPage ? <PageScrollGrid {...props} /> : <BoxScrollGrid {...props} />;
 }
-
-/** The width of an element's content, updating as it changes */
-const useContentWidth = (ref: RefObject<HTMLElement | null>) => {
-  const [width, setWidth] = useState(0);
-  useLayoutEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry.contentRect.width));
-    observer.observe(element);
-    setWidth(element.clientWidth);
-    return () => observer.disconnect();
-  }, [ref]);
-  return width;
-};
 
 const toRows = <T,>(items: T[], columns: number) => {
   const rows: T[][] = [];
@@ -107,20 +86,8 @@ function PageScrollGrid<T>({
   className = '',
 }: VirtualCardGridProps<T>) {
   const listRef = useRef<HTMLDivElement>(null);
-  // How far down the page the grid starts. Kept up to date as what's above
-  // it changes height (the map, a crawl, messages).
-  const [pageOffset, setPageOffset] = useState(0);
-  useLayoutEffect(() => {
-    const update = () => {
-      if (listRef.current) {
-        setPageOffset(Math.round(listRef.current.getBoundingClientRect().top + window.scrollY));
-      }
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(document.body);
-    return () => observer.disconnect();
-  }, []);
+  // How far down the page the grid starts
+  const pageOffset = usePageOffset(listRef);
 
   const rows = toRows(items, 1);
   const virtualizer = useWindowVirtualizer({

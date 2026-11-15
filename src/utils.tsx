@@ -31,3 +31,6 @@ export const todayDate = () => {
   const day = String(now.getDate()).padStart(2, '0');
   return `${now.getFullYear()}-${month}-${day}`;
 };
+
+/** e.g. plural(1, 'visit') → "1 visit", plural(3, 'visit') → "3 visits" */
+export const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? '' : 's'}`;

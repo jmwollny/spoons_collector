@@ -1,17 +1,11 @@
 import { useMemo, useState } from 'react';
 import type { PubLocation } from '../types';
-import {
-  MAX_STOPS,
-  MIN_STOPS,
-  planCrawl,
-  type Crawl,
-  type CrawlStart,
-  type CrawlStyle,
-  type TravelMode,
-} from '../crawl';
+import { planCrawl, type Crawl, type CrawlStart } from '../crawl';
 import { getCurrentLocation } from '../location';
 import { ActionButton } from './ActionButton';
 import { Modal } from './Modal';
+import { CrawlStartChoice, type StartKind } from './crawl/CrawlStartChoice';
+import { CrawlOptionFields, type CrawlOptionValues } from './crawl/CrawlOptionFields';
 import './Crawl.css';
 
 type CrawlPlannerProps = {
@@ -26,10 +20,7 @@ type CrawlPlannerProps = {
   onClose: () => void;
 };
 
-type StartKind = CrawlStart['kind'];
-
-const STAY_OPTIONS = [45, 60, 90, 120];
-
+// "HH:MM" → minutes after midnight
 const toMinutes = (time: string) => {
   const [hours, minutes] = time.split(':').map(Number);
   return hours * 60 + minutes;
@@ -47,11 +38,13 @@ export const CrawlPlanner = ({
 }: CrawlPlannerProps) => {
   const [startKind, setStartKind] = useState<StartKind>('pub');
   const [town, setTown] = useState(selectedPub.city);
-  const [stopCount, setStopCount] = useState(4);
-  const [style, setStyle] = useState<CrawlStyle>('new');
-  const [mode, setMode] = useState<TravelMode>('walk');
-  const [startTime, setStartTime] = useState('10:00');
-  const [stayMinutes, setStayMinutes] = useState(60);
+  const [options, setOptions] = useState<CrawlOptionValues>({
+    stopCount: 4,
+    style: 'new',
+    mode: 'walk',
+    stayMinutes: 60,
+    startTime: '10:00',
+  });
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,29 +54,28 @@ export const CrawlPlanner = ({
     [locations],
   );
 
+  // Where the crawl starts; finding the user's location if asked to
+  const resolveStart = async (): Promise<CrawlStart> => {
+    if (startKind === 'pub') return { kind: 'pub', pubId: selectedPub.id };
+    if (startKind === 'town') return { kind: 'town', town };
+    return { kind: 'here', ...(await getCurrentLocation()) };
+  };
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPlanning(true);
     setError(null);
     try {
-      let start: CrawlStart;
-      if (startKind === 'pub') {
-        start = { kind: 'pub', pubId: selectedPub.id };
-      } else if (startKind === 'town') {
-        start = { kind: 'town', town };
-      } else {
-        const position = await getCurrentLocation();
-        start = { kind: 'here', ...position };
-      }
+      const start = await resolveStart();
       onPlan(
         planCrawl(
           {
             start,
-            stopCount,
-            style,
-            mode,
-            startTime: toMinutes(startTime || '10:00'),
-            stayMinutes,
+            stopCount: options.stopCount,
+            style: options.style,
+            mode: options.mode,
+            startTime: toMinutes(options.startTime || '10:00'),
+            stayMinutes: options.stayMinutes,
             date: today,
           },
           locations,
@@ -100,111 +92,24 @@ export const CrawlPlanner = ({
   return (
     <Modal title="Plan a Spoons crawl" onClose={onClose} className="crawl-planner">
       <form className="crawl-form" onSubmit={handleSubmit}>
-        <fieldset className="crawl-start">
-          <legend>Start from</legend>
-          <label className="crawl-choice">
-            <input
-              type="radio"
-              name="crawl-start"
-              checked={startKind === 'pub'}
-              onChange={() => setStartKind('pub')}
-            />
-            <span>
-              {selectedPub.name}, {selectedPub.city}
-              <small>The pub selected on the map</small>
-            </span>
-          </label>
-          <label className="crawl-choice">
-            <input
-              type="radio"
-              name="crawl-start"
-              checked={startKind === 'here'}
-              onChange={() => setStartKind('here')}
-            />
-            <span>My location</span>
-          </label>
-          <label className="crawl-choice">
-            <input
-              type="radio"
-              name="crawl-start"
-              checked={startKind === 'town'}
-              onChange={() => setStartKind('town')}
-            />
-            <span>A town</span>
-          </label>
-          {startKind === 'town' && (
-            <>
-              <input
-                className="crawl-town"
-                list="crawl-towns"
-                value={town}
-                onChange={(event) => setTown(event.target.value)}
-                placeholder="Type a town"
-                aria-label="Town"
-                required
-              />
-              <datalist id="crawl-towns">
-                {towns.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
-            </>
-          )}
-        </fieldset>
+        <CrawlStartChoice
+          value={startKind}
+          onChange={setStartKind}
+          selectedPub={selectedPub}
+          town={town}
+          onTownChange={setTown}
+          towns={towns}
+        />
 
-        <div className="crawl-form-grid">
-          <label>
-            Pubs
-            <select value={stopCount} onChange={(event) => setStopCount(Number(event.target.value))}>
-              {Array.from({ length: MAX_STOPS - MIN_STOPS + 1 }, (_, index) => MIN_STOPS + index).map(
-                (count) => (
-                  <option key={count} value={count}>
-                    {count} pubs
-                  </option>
-                ),
-              )}
-            </select>
-          </label>
-          <label>
-            Which pubs
-            <select value={style} onChange={(event) => setStyle(event.target.value as CrawlStyle)}>
-              <option value="new">New to me</option>
-              <option value="rarity">Rarest in reach</option>
-              <option value="any">Any, nearest first</option>
-            </select>
-          </label>
-          <label>
-            Getting around
-            <select value={mode} onChange={(event) => setMode(event.target.value as TravelMode)}>
-              <option value="walk">Walking</option>
-              <option value="drive">Car, bus or train</option>
-            </select>
-          </label>
-          <label>
-            Time at each pub
-            <select value={stayMinutes} onChange={(event) => setStayMinutes(Number(event.target.value))}>
-              {STAY_OPTIONS.map((minutes) => (
-                <option key={minutes} value={minutes}>
-                  {minutes < 60 ? `${minutes} min` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Start time
-            <input
-              type="time"
-              value={startTime}
-              onChange={(event) => setStartTime(event.target.value)}
-              required
-            />
-          </label>
-        </div>
+        <CrawlOptionFields
+          values={options}
+          onChange={(changes) => setOptions((current) => ({ ...current, ...changes }))}
+        />
 
         <p className="crawl-form-note">
-          Meals follow Wetherspoon's usual times (breakfast until noon). Check
-          each pub's menu for its own hours.
-          {mode === 'drive' && ' Please don\'t drink and drive.'}
+          Meals follow Wetherspoon's usual times (breakfast until noon). Check each pub's menu for
+          its own hours.
+          {options.mode === 'drive' && " Please don't drink and drive."}
           {hasCrawl && ' This replaces your current crawl.'}
         </p>
 
