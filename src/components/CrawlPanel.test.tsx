@@ -232,4 +232,17 @@ describe('CrawlPanel', () => {
       cleanup();
     }
   });
+
+  it('credits the routing service, with a link to fix the map', () => {
+    renderPanel({ streetRouteStatus: 'done' });
+    expect(screen.getByRole('link', { name: 'routing.openstreetmap.de' })).toHaveAttribute(
+      'href',
+      'https://routing.openstreetmap.de/',
+    );
+    expect(screen.getByRole('link', { name: 'fix the map' })).toHaveAttribute(
+      'href',
+      'https://www.openstreetmap.org/fixthemap',
+    );
+    expect(screen.getByText(/map data © OpenStreetMap contributors/)).toBeInTheDocument();
+  });
 });

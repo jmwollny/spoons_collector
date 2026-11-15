@@ -35,10 +35,23 @@ type CrawlPanelProps = {
   unlockedNow: string[];
 };
 
-const ROUTE_NOTES: Record<StreetRouteStatus, string> = {
+const ROUTE_NOTES: Record<StreetRouteStatus, React.ReactNode> = {
   none: 'Distances are as the crow flies; times allow a bit extra for the real route.',
   loading: 'Finding the route along the streets…',
-  done: 'Distances and times follow the streets (routes from openstreetmap.de, © OpenStreetMap contributors).',
+  // The routing service asks for attribution and a "fix the map" link
+  done: (
+    <>
+      Distances and times follow the streets (routes from{' '}
+      <a href="https://routing.openstreetmap.de/" target="_blank" rel="noopener noreferrer">
+        routing.openstreetmap.de
+      </a>
+      , map data © OpenStreetMap contributors;{' '}
+      <a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener noreferrer">
+        fix the map
+      </a>
+      ).
+    </>
+  ),
   failed: "Couldn't get the route along the streets, so distances are as the crow flies.",
 };
 
