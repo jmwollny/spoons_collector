@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { PubLocation } from '../types';
 import {
   MAX_STOPS,
@@ -11,7 +11,7 @@ import {
 } from '../crawl';
 import { getCurrentLocation } from '../location';
 import { ActionButton } from './ActionButton';
-import { useBackButton } from '../backButton';
+import { Modal } from './Modal';
 import './Crawl.css';
 
 type CrawlPlannerProps = {
@@ -61,15 +61,6 @@ export const CrawlPlanner = ({
     [locations],
   );
 
-  useBackButton(onClose);
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setPlanning(true);
@@ -107,141 +98,126 @@ export const CrawlPlanner = ({
   };
 
   return (
-    <div className="visit-form-modal-backdrop" onClick={onClose}>
-      <div
-        className="visit-form-modal crawl-planner"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="crawl-planner-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="visit-form-modal-header">
-          <h2 id="crawl-planner-title">Plan a Spoons crawl</h2>
-          <button type="button" className="visit-form-close" onClick={onClose}>
-            Close
-          </button>
-        </div>
-
-        <form className="crawl-form" onSubmit={handleSubmit}>
-          <fieldset className="crawl-start">
-            <legend>Start from</legend>
-            <label className="crawl-choice">
+    <Modal title="Plan a Spoons crawl" onClose={onClose} className="crawl-planner">
+      <form className="crawl-form" onSubmit={handleSubmit}>
+        <fieldset className="crawl-start">
+          <legend>Start from</legend>
+          <label className="crawl-choice">
+            <input
+              type="radio"
+              name="crawl-start"
+              checked={startKind === 'pub'}
+              onChange={() => setStartKind('pub')}
+            />
+            <span>
+              {selectedPub.name}, {selectedPub.city}
+              <small>The pub selected on the map</small>
+            </span>
+          </label>
+          <label className="crawl-choice">
+            <input
+              type="radio"
+              name="crawl-start"
+              checked={startKind === 'here'}
+              onChange={() => setStartKind('here')}
+            />
+            <span>My location</span>
+          </label>
+          <label className="crawl-choice">
+            <input
+              type="radio"
+              name="crawl-start"
+              checked={startKind === 'town'}
+              onChange={() => setStartKind('town')}
+            />
+            <span>A town</span>
+          </label>
+          {startKind === 'town' && (
+            <>
               <input
-                type="radio"
-                name="crawl-start"
-                checked={startKind === 'pub'}
-                onChange={() => setStartKind('pub')}
-              />
-              <span>
-                {selectedPub.name}, {selectedPub.city}
-                <small>The pub selected on the map</small>
-              </span>
-            </label>
-            <label className="crawl-choice">
-              <input
-                type="radio"
-                name="crawl-start"
-                checked={startKind === 'here'}
-                onChange={() => setStartKind('here')}
-              />
-              <span>My location</span>
-            </label>
-            <label className="crawl-choice">
-              <input
-                type="radio"
-                name="crawl-start"
-                checked={startKind === 'town'}
-                onChange={() => setStartKind('town')}
-              />
-              <span>A town</span>
-            </label>
-            {startKind === 'town' && (
-              <>
-                <input
-                  className="crawl-town"
-                  list="crawl-towns"
-                  value={town}
-                  onChange={(event) => setTown(event.target.value)}
-                  placeholder="Type a town"
-                  aria-label="Town"
-                  required
-                />
-                <datalist id="crawl-towns">
-                  {towns.map((name) => (
-                    <option key={name} value={name} />
-                  ))}
-                </datalist>
-              </>
-            )}
-          </fieldset>
-
-          <div className="crawl-form-grid">
-            <label>
-              Pubs
-              <select value={stopCount} onChange={(event) => setStopCount(Number(event.target.value))}>
-                {Array.from({ length: MAX_STOPS - MIN_STOPS + 1 }, (_, index) => MIN_STOPS + index).map(
-                  (count) => (
-                    <option key={count} value={count}>
-                      {count} pubs
-                    </option>
-                  ),
-                )}
-              </select>
-            </label>
-            <label>
-              Which pubs
-              <select value={style} onChange={(event) => setStyle(event.target.value as CrawlStyle)}>
-                <option value="new">New to me</option>
-                <option value="rarity">Rarest in reach</option>
-                <option value="any">Any, nearest first</option>
-              </select>
-            </label>
-            <label>
-              Getting around
-              <select value={mode} onChange={(event) => setMode(event.target.value as TravelMode)}>
-                <option value="walk">Walking</option>
-                <option value="drive">Car, bus or train</option>
-              </select>
-            </label>
-            <label>
-              Time at each pub
-              <select value={stayMinutes} onChange={(event) => setStayMinutes(Number(event.target.value))}>
-                {STAY_OPTIONS.map((minutes) => (
-                  <option key={minutes} value={minutes}>
-                    {minutes < 60 ? `${minutes} min` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Start time
-              <input
-                type="time"
-                value={startTime}
-                onChange={(event) => setStartTime(event.target.value)}
+                className="crawl-town"
+                list="crawl-towns"
+                value={town}
+                onChange={(event) => setTown(event.target.value)}
+                placeholder="Type a town"
+                aria-label="Town"
                 required
               />
-            </label>
-          </div>
-
-          <p className="crawl-form-note">
-            Meals follow Wetherspoon's usual times (breakfast until noon). Check
-            each pub's menu for its own hours.
-            {mode === 'drive' && ' Please don\'t drink and drive.'}
-            {hasCrawl && ' This replaces your current crawl.'}
-          </p>
-
-          {error && (
-            <p className="near-me-error" role="alert">
-              {error}
-            </p>
+              <datalist id="crawl-towns">
+                {towns.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            </>
           )}
+        </fieldset>
 
-          <ActionButton type="submit" disabled={planning}>
-            {planning ? 'Planning…' : 'Plan my crawl'}
-          </ActionButton>
-        </form>
-      </div>
-    </div>
+        <div className="crawl-form-grid">
+          <label>
+            Pubs
+            <select value={stopCount} onChange={(event) => setStopCount(Number(event.target.value))}>
+              {Array.from({ length: MAX_STOPS - MIN_STOPS + 1 }, (_, index) => MIN_STOPS + index).map(
+                (count) => (
+                  <option key={count} value={count}>
+                    {count} pubs
+                  </option>
+                ),
+              )}
+            </select>
+          </label>
+          <label>
+            Which pubs
+            <select value={style} onChange={(event) => setStyle(event.target.value as CrawlStyle)}>
+              <option value="new">New to me</option>
+              <option value="rarity">Rarest in reach</option>
+              <option value="any">Any, nearest first</option>
+            </select>
+          </label>
+          <label>
+            Getting around
+            <select value={mode} onChange={(event) => setMode(event.target.value as TravelMode)}>
+              <option value="walk">Walking</option>
+              <option value="drive">Car, bus or train</option>
+            </select>
+          </label>
+          <label>
+            Time at each pub
+            <select value={stayMinutes} onChange={(event) => setStayMinutes(Number(event.target.value))}>
+              {STAY_OPTIONS.map((minutes) => (
+                <option key={minutes} value={minutes}>
+                  {minutes < 60 ? `${minutes} min` : `${minutes / 60} hour${minutes > 60 ? 's' : ''}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Start time
+            <input
+              type="time"
+              value={startTime}
+              onChange={(event) => setStartTime(event.target.value)}
+              required
+            />
+          </label>
+        </div>
+
+        <p className="crawl-form-note">
+          Meals follow Wetherspoon's usual times (breakfast until noon). Check
+          each pub's menu for its own hours.
+          {mode === 'drive' && ' Please don\'t drink and drive.'}
+          {hasCrawl && ' This replaces your current crawl.'}
+        </p>
+
+        {error && (
+          <p className="near-me-error" role="alert">
+            {error}
+          </p>
+        )}
+
+        <ActionButton type="submit" disabled={planning}>
+          {planning ? 'Planning…' : 'Plan my crawl'}
+        </ActionButton>
+      </form>
+    </Modal>
   );
 };

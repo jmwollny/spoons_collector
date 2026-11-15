@@ -1,568 +1,145 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import './App.css';
-import spoons from '../assets/spoons_enriched.json';
+import type { VisitEntry } from './types';
+import { initialMapBounds, locations, pubsById, regions } from './data';
+import { distanceMiles, formatDate, todayDate } from './utils';
+import { sanitiseCrawl } from './crawl';
+import { unlockedTitles } from './achievements';
+import { useBackup } from './backupReminder';
+import { useVisits } from './hooks/useVisits';
+import { usePubFilters } from './hooks/usePubFilters';
+import { useSelectedPub } from './hooks/useSelectedPub';
+import { useVisitEditor } from './hooks/useVisitEditor';
+import { useCrawlSession } from './hooks/useCrawlSession';
+import { useNearMe } from './hooks/useNearMe';
+import { useLiveArrival } from './hooks/useLiveArrival';
+import { useMapExpanded } from './hooks/useMapExpanded';
+import { useActiveTrail } from './hooks/useActiveTrail';
 import { Map } from './components/Map';
 import SpoonCard from './components/SpoonCard';
-import type { PubLocation, VisitEntry } from './types';
-import { VisitForm } from './components/VisitForm';
 import { Visits } from './components/Visits';
-import { ActionButton } from './components/ActionButton';
-import StarRating from './components/StarRating';
-import { distanceMiles, formatDate } from './utils';
-import { getCurrentLocation, type Position } from './location';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { Achievements } from './components/Achievements';
 import { RarityProgress } from './components/RarityProgress';
 import { RegionBreakdown } from './components/RegionBreakdown';
 import { BackupPanel } from './components/BackupPanel';
+import { BackupReminder } from './components/BackupReminder';
 import { VisitHistory } from './components/VisitHistory';
+import { VisitFormModal } from './components/VisitFormModal';
 import { CardViewer } from './components/CardViewer';
 import { SelectedPubBar } from './components/SelectedPubBar';
-import { useBackButton } from './backButton';
-import { loadVisits, loadVisitsCopy, reconcileVisits, saveVisitsCopy, storageKey } from './visits';
-import { isStopDone, loadCrawl, sanitiseCrawl, saveCrawl, type Crawl } from './crawl';
-import { useBackup } from './backupReminder';
-import { BackupReminder } from './components/BackupReminder';
+import { SelectedPubSummary } from './components/SelectedPubSummary';
+import { MapToolbar } from './components/MapToolbar';
+import { VisitMetrics } from './components/VisitMetrics';
 import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
-import type { CrawlRoute } from './components/Map';
-import { crawlTrail, usePubTrail } from './trail';
-import { unlockedTitles } from './achievements';
-import { useArrival, useLiveLocation } from './liveLocation';
 import { ArrivalBanner } from './components/ArrivalBanner';
 import { TrailNav } from './components/TrailNav';
 
-type VisitFilter = 'all' | 'visited' | 'unvisited';
-
-// The app identifies pubs by Wetherspoon's own id (jdwId) rather than the OSM
-// id, which changes whenever a mapper redraws a pub and would orphan the
-// visits recorded against it. The pipeline warns about any pub without one.
-const locations: PubLocation[] = spoons
-  .filter((spoon) => spoon.jdwId)
-  .map(({ id, jdwId, ...spoon }) => ({ ...spoon, id: jdwId, osmId: id }));
-
-// Whether live location was left on, remembered between visits
-const liveLocationKey = 'spoons-collector-live-location';
-const readLiveLocationSetting = () => {
-  try {
-    return window.localStorage.getItem(liveLocationKey) === 'on';
-  } catch {
-    return false;
-  }
-};
-
-const pubsById = new globalThis.Map(locations.map((location) => [location.id, location]));
-
-const regions = Array.from(
-  new Set(locations.map((location) => location.region)),
-).sort();
-
-// The map opens showing every pub
-const initialMapBounds: [[number, number], [number, number]] = [
-  [Math.min(...locations.map((location) => location.lat)), Math.min(...locations.map((location) => location.lon))],
-  [Math.max(...locations.map((location) => location.lat)), Math.max(...locations.map((location) => location.lon))],
-];
-
 function App() {
-  const [visits, setVisits] = useState<VisitEntry[]>(() => {
-    if (typeof window === 'undefined') {
-      return [];
-    }
+  const today = todayDate();
 
-    return loadVisits(locations, window.localStorage);
-  });
-  // Until the second copy of the visits has been read (see below), saving
-  // to it would overwrite it with what may be an empty list
-  const [isVisitsCopyLoaded, setIsVisitsCopyLoaded] = useState(false);
-  // Local date as YYYY-MM-DD. toISOString() is UTC, which is still "yesterday"
-  // for the first hour after midnight during British Summer Time.
-  const getTodayDate = () => {
-    const now = new Date();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${now.getFullYear()}-${month}-${day}`;
-  };
+  // ---- Visits, and which pubs are shown and selected ----
+  const visitsApi = useVisits(locations);
+  const { visits, visitedLocationIds, indexedVisits, statsFor } = visitsApi;
+  const filters = usePubFilters(locations, visitedLocationIds);
+  const { selectedId, selectedPub, select, selectAnyPub } = useSelectedPub(locations, filters);
+  const selectedStats = statsFor(selectedPub.id);
+  const editor = useVisitEditor(selectedId, visitsApi);
 
-  const getDefaultForm = () => ({
-    date: getTodayDate(),
-    rating: -1,
-  });
-
-  const [form, setForm] = useState(getDefaultForm());
-  const [selectedLocationId, setSelectedLocationId] = useState<number>(
-    locations[0]?.id ?? 0,
-  );
-  const [isVisitFormOpen, setIsVisitFormOpen] = useState(false);
-  // The visit being edited in the form, or null when adding a new one
-  const [editingVisitId, setEditingVisitId] = useState<string | null>(null);
+  // ---- Dialogs and overlays ----
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  // Whether the selected pub's card is open full size
   const [isCardViewerOpen, setIsCardViewerOpen] = useState(false);
-  const mapRef = useRef<HTMLDivElement>(null);
-  // Whether the map fills the screen
-  const [isMapExpanded, setIsMapExpanded] = useState(false);
-  // The Spoons crawl under way, if any
-  const [crawl, setCrawl] = useState<Crawl | null>(() => loadCrawl(locations));
-  const [isCrawlPlannerOpen, setIsCrawlPlannerOpen] = useState(false);
-  const [isEndCrawlPending, setIsEndCrawlPending] = useState(false);
-  const [isLiveLocationOn, setIsLiveLocationOn] = useState(readLiveLocationSetting);
-  // Pubs whose "You're at" banner the user closed this session
-  const [dismissedArrivals, setDismissedArrivals] = useState<Set<number>>(() => new Set());
-  // During a crawl the page shows only the map and the crawl ("crawl
-  // mode"), unless the user chose to browse all the pubs meanwhile
-  const [isBrowsingDuringCrawl, setIsBrowsingDuringCrawl] = useState(false);
-  const isCrawlMode = crawl !== null && !isBrowsingDuringCrawl;
-  // Bumped to make the map zoom to the whole crawl; starts at 1 so a crawl
-  // under way is in view when the app opens
-  const [routeFitKey, setRouteFitKey] = useState(() => (crawl ? 1 : 0));
   // The visit waiting for the user to confirm its deletion
   const [visitPendingDelete, setVisitPendingDelete] = useState<VisitEntry | null>(null);
-  const [sortBy, setSortBy] = useState('name-asc');
-  const [userPosition, setUserPosition] = useState<Position | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('all');
-  const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
+  const mapExpanded = useMapExpanded();
+  const mapRef = useRef<HTMLDivElement>(null);
 
-  // Visits are saved twice: in local storage, and a second copy in the
-  // app's own settings store (see visits.ts). When the app opens, the copy
-  // brings back any visits missing from local storage, e.g. if Android
-  // cleared the web view's storage.
-  useEffect(() => {
-    loadVisitsCopy()
-      .then((copy) => {
-        setVisits((current) => reconcileVisits(current, copy).visits);
-      })
-      .catch(() => {
-        // No copy to restore from; local storage is all there is
-      })
-      .finally(() => setIsVisitsCopyLoaded(true));
-  }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(storageKey, JSON.stringify(visits));
-    if (isVisitsCopyLoaded) {
-      void saveVisitsCopy(visits);
-    }
-  }, [visits, isVisitsCopyLoaded]);
-
-  useEffect(() => {
-    saveCrawl(crawl);
-  }, [crawl]);
-
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(liveLocationKey, isLiveLocationOn ? 'on' : 'off');
-    } catch {
-      // Not remembered; it just starts off next time
-    }
-  }, [isLiveLocationOn]);
-
-
-  const visitedLocationIds = useMemo(
-    () => new Set(visits.map((visit) => visit.locationId)),
-    [visits],
-  );
-  // Counts only pubs still in the data, not visits to pubs since closed
-  const uniqueVisitedCount = useMemo(
-    () => locations.filter((location) => visitedLocationIds.has(location.id)).length,
-    [visitedLocationIds],
-  );
-  const totalLocations = locations.length;
-  const completionPercentage = Math.round(
-    (uniqueVisitedCount / totalLocations) * 100,
-  );
-  // Each pub's visits, newest first, so [0] is always the latest visit
-  const indexedVisits = useMemo(() => {
-    const byPub = visits.reduce<Record<number, VisitEntry[]>>((acc, visit) => {
-      if (!acc[visit.locationId]) acc[visit.locationId] = [];
-      acc[visit.locationId].push(visit);
-      return acc;
-    }, {});
-    for (const pubVisits of Object.values(byPub)) {
-      pubVisits.sort((a, b) => b.date.localeCompare(a.date) || b.id.localeCompare(a.id));
-    }
-    return byPub;
-  }, [visits]);
-
-  // Date of the latest visit to a pub, formatted for display
-  const getVisitDate = (id: number): string | null => {
-    const latest = indexedVisits[id]?.[0];
-    return latest ? formatDate(latest.date) : null;
-  };
-
-  const filteredLocations = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-
-    return locations.filter((location) => {
-      const matchesSearch =
-        normalizedSearch.length === 0 ||
-        `${location.name} ${location.city} ${location.region}`
-          .toLowerCase()
-          .includes(normalizedSearch);
-
-      const matchesRegion =
-        selectedRegion === 'all' || location.region === selectedRegion;
-
-      const isVisited = visitedLocationIds.has(location.id);
-      const matchesVisitFilter =
-        visitFilter === 'all' ||
-        (visitFilter === 'visited' && isVisited) ||
-        (visitFilter === 'unvisited' && !isVisited);
-
-      return matchesSearch && matchesRegion && matchesVisitFilter;
-    });
-  }, [searchTerm, selectedRegion, visitFilter, visitedLocationIds]);
-
-  const selectedLocation =
-    filteredLocations.find((location) => location.id === selectedLocationId) ??
-    filteredLocations[0] ??
-    locations[0];
-
-  const openAddVisit = () => {
-    setEditingVisitId(null);
-    setForm(getDefaultForm());
-    setIsVisitFormOpen(true);
-  };
-
-  // Opens the form filled in with one of the selected pub's visits
-  const openEditVisit = (visit: VisitEntry) => {
-    setIsHistoryOpen(false);
-    setEditingVisitId(visit.id);
-    setForm({ date: visit.date, rating: visit.rating });
-    setIsVisitFormOpen(true);
-  };
-
-  /**
-   * Near me: finds the user, then lists the unvisited pubs nearest first and
-   * selects the closest one, which centres the map on it.
-   */
-  const handleNearMe = async () => {
-    setLocating(true);
-    setLocationError(null);
-    try {
-      const position = await getCurrentLocation();
-      const nearest = locations
-        .filter((location) => !visitedLocationIds.has(location.id))
-        .reduce<{ id: number; miles: number } | null>((closest, location) => {
-          const miles = distanceMiles(position.lat, position.lon, location.lat, location.lon);
-          return !closest || miles < closest.miles ? { id: location.id, miles } : closest;
-        }, null);
-
-      setUserPosition(position);
-      // The list and its filters are hidden in crawl mode, so leave them be
-      if (!isCrawlMode) {
-        setSortBy('distance');
-        setSearchTerm('');
-        setSelectedRegion('all');
-        setVisitFilter('unvisited');
-      }
-      if (nearest) {
-        setSelectedLocationId(nearest.id);
-      }
-    } catch (error) {
-      setLocationError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLocating(false);
+  // Scrolls once the page has updated, as what's shown above the map can
+  // change at the same moment (e.g. starting a crawl hides the backup
+  // reminder), which would leave the scroll short or overshooting
+  const scrollToMap = (block: ScrollLogicalPosition = 'start') => {
+    if (!mapExpanded.isExpanded) {
+      requestAnimationFrame(() => mapRef.current?.scrollIntoView({ behavior: 'smooth', block }));
     }
   };
 
-  const closeVisitForm = () => {
-    setIsVisitFormOpen(false);
-    setEditingVisitId(null);
-    setForm(getDefaultForm());
-  };
-
-  /**
-   * Handle the form submission. Save the visit details to the browser's local storage.
-   */
-  const handleSubmit = (event: React.SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!selectedLocationId || !form.date) {
-      return;
-    }
-
-    if (editingVisitId) {
-      setVisits((current) =>
-        current.map((visit) =>
-          visit.id === editingVisitId
-            ? { ...visit, date: form.date, rating: form.rating }
-            : visit,
-        ),
-      );
-    } else {
-      const entry: VisitEntry = {
-        id: `${selectedLocationId}-${Date.now()}`,
-        locationId: selectedLocationId,
-        date: form.date,
-        rating: form.rating,
-      };
-      setVisits((current) => [entry, ...current]);
-    }
-
-    closeVisitForm();
-  };
-
-  function onRatingUpdated(rating: number): void {
-    setForm((current) => ({ ...current, rating: rating }));
-  }
-
-  const handleSelectLocation = (locationId: number) => {
-    setSelectedLocationId(locationId);
-  };
-
-  // Selects a pub even if the search or filters hide it, by clearing them;
-  // otherwise the selection would jump straight back to a pub on the list.
-  // Used for crawl stops, which can be anywhere.
-  const selectAnyPub = (locationId: number) => {
-    if (!filteredLocations.some((location) => location.id === locationId)) {
-      setSearchTerm('');
-      setSelectedRegion('all');
-      setVisitFilter('all');
-    }
-    setSelectedLocationId(locationId);
-  };
-
-  // Previous and Next nearest pub, following the search and filters
-  const nearbyTrail = usePubTrail(selectedLocationId, filteredLocations, pubsById, selectAnyPub);
-  // In crawl mode the arrows follow the crawl's stops in order instead
-  const trail =
-    isCrawlMode && crawl
-      ? crawlTrail(
-          crawl.stops.map((stop) => stop.pubId),
-          new Set(
-            crawl.stops
-              .filter((stop) => isStopDone(crawl, stop.pubId, indexedVisits))
-              .map((stop) => stop.pubId),
-          ),
-          selectedLocationId,
-          pubsById,
-          selectAnyPub,
-        )
-      : nearbyTrail;
-
-  // ← and → step through nearby pubs, unless the user is typing, a form
-  // or dialog is open, or they're panning the map with the keyboard
-  const trailRef = useRef(trail);
-  useEffect(() => {
-    trailRef.current = trail;
-  });
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-      const target = event.target as HTMLElement;
-      if (target.closest('input, select, textarea, [contenteditable="true"]')) return;
-      // On the map itself the arrows pan it; on a pub marker they step
-      if (target.closest('.leaflet-container') && !target.closest('.leaflet-marker-icon')) return;
-      if (document.querySelector('.visit-form-modal-backdrop')) return;
-      // Stops the map panning as well when a marker has focus
-      event.stopPropagation();
-      event.preventDefault();
-      if (event.key === 'ArrowRight') trailRef.current.goNext();
-      else trailRef.current.goPrevious();
-    };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, []);
-
-  const backup = useBackup(visits, crawl, getTodayDate());
-
-  // ---- Live location: notice when the user is at a pub ----
-  const live = useLiveLocation(isLiveLocationOn);
-  const arrivedPubId = useArrival(live.position, locations);
-  const arrivedPub = arrivedPubId === null ? undefined : pubsById.get(arrivedPubId);
-  const today = getTodayDate();
-  const isCheckedInToday = (pubId: number) =>
-    Boolean(indexedVisits[pubId]?.some((visit) => visit.date === today));
-  const arrivalCrawlIndex =
-    crawl && arrivedPubId !== null ? crawl.stops.findIndex((stop) => stop.pubId === arrivedPubId) : -1;
-  // The banner: not for a pub dismissed, or already checked in at today
-  const bannerPub =
-    arrivedPub && !dismissedArrivals.has(arrivedPub.id) && !isCheckedInToday(arrivedPub.id)
-      ? arrivedPub
-      : undefined;
-
-  // Whether the user has picked a pub themselves. Until they have (or when
-  // they reach a stop on their crawl), arriving at a pub selects it, so
-  // the map follows them; otherwise the banner just offers it.
-  const userHasChosenPub = useRef(false);
-  const autoSelectedPubId = useRef<number | null>(null);
-  // The pub selected when the app opened, which the user didn't choose
-  const initialPubId = useRef(selectedLocationId);
-  useEffect(() => {
-    if (
-      selectedLocationId !== initialPubId.current &&
-      selectedLocationId !== autoSelectedPubId.current
-    ) {
-      userHasChosenPub.current = true;
-    }
-  }, [selectedLocationId]);
-
-  useEffect(() => {
-    if (arrivedPubId === null) return;
-    const isCrawlStop = isCrawlMode && arrivalCrawlIndex !== -1;
-    if (!userHasChosenPub.current || isCrawlStop) {
-      autoSelectedPubId.current = arrivedPubId;
-      selectAnyPub(arrivedPubId);
-    }
-    // Only when the user arrives somewhere new
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [arrivedPubId]);
-
-  const scrollToMap = () => {
-    if (!isMapExpanded) {
-      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
+  // ---- Crawls ----
   const unlockedNow = useMemo(
     () => unlockedTitles(locations, visitedLocationIds, indexedVisits),
     [visitedLocationIds, indexedVisits],
   );
-
-  const handleCrawlPlanned = (planned: Crawl) => {
-    setCrawl({ ...planned, unlockedAtStart: unlockedNow });
-    setIsCrawlPlannerOpen(false);
-    setIsBrowsingDuringCrawl(false);
+  const crawl = useCrawlSession({
+    locations,
+    pubsById,
+    indexedVisits,
+    unlockedNow,
     // Crawl mode hides the list, so clear its search and filters, which
     // would otherwise hide pubs on the map with no visible reason
-    setSearchTerm('');
-    setSelectedRegion('all');
-    setVisitFilter('all');
-    setSelectedLocationId(planned.stops[0].pubId);
-    setRouteFitKey((key) => key + 1);
-    scrollToMap();
-  };
+    onEnterCrawl: (pubId, how) => {
+      filters.clearFilters();
+      select(pubId);
+      if (how === 'started') {
+        scrollToMap();
+      } else {
+        requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      }
+    },
+  });
 
-  /**
-   * Leaves browsing for crawl mode, with the map on the next stop not yet
-   * checked in at (the last stop if they all are). Clears the search and
-   * filters set while browsing, as crawl mode hides them.
-   */
-  const backToCrawl = () => {
-    if (!crawl) return;
-    const nextStop =
-      crawl.stops.find((stop) => !isStopDone(crawl, stop.pubId, indexedVisits)) ??
-      crawl.stops[crawl.stops.length - 1];
-    setIsBrowsingDuringCrawl(false);
-    setSearchTerm('');
-    setSelectedRegion('all');
-    setVisitFilter('all');
-    setSelectedLocationId(nextStop.pubId);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+  // ---- Finding the user ----
+  const nearMe = useNearMe(locations, visitedLocationIds, (_position, nearestPubId) => {
+    // The list and its filters are hidden in crawl mode, so leave them be
+    if (!crawl.isCrawlMode) {
+      filters.setSortBy('distance');
+      filters.clearFilters();
+      filters.setVisitFilter('unvisited');
+    }
+    if (nearestPubId !== null) {
+      select(nearestPubId);
+    }
+  });
 
-  const showCrawlRoute = () => {
-    setRouteFitKey((key) => key + 1);
-    scrollToMap();
-  };
+  const live = useLiveArrival({
+    locations,
+    pubsById,
+    selectedId,
+    crawl: crawl.crawl,
+    isCrawlMode: crawl.isCrawlMode,
+    isCheckedInToday: (pubId) =>
+      Boolean(indexedVisits[pubId]?.some((visit) => visit.date === today)),
+    selectAnyPub,
+  });
 
-  // Checking in at a stop opens the visit form for its pub
-  const checkInAtStop = (pubId: number) => {
-    selectAnyPub(pubId);
-    openAddVisit();
-  };
+  // ---- Previous and Next ----
+  const trail = useActiveTrail(selectedId, filters.filteredLocations, pubsById, crawl, selectAnyPub);
 
-  const crawlRoute = useMemo<CrawlRoute | null>(() => {
-    if (!crawl) return null;
-    return {
-      start: crawl.startIsPub
-        ? null
-        : { lat: crawl.startLat, lon: crawl.startLon, label: crawl.startLabel },
-      stops: crawl.stops.flatMap((stop) => {
-        const pub = pubsById.get(stop.pubId);
-        return pub
-          ? [{
-              pubId: pub.id,
-              lat: pub.lat,
-              lon: pub.lon,
-              name: pub.name,
-              done: isStopDone(crawl, pub.id, indexedVisits),
-            }]
-          : [];
-      }),
-    };
-  }, [crawl, indexedVisits]);
+  const backup = useBackup(visits, crawl.crawl, today);
 
-  // Selects a pub and opens its card full size
-  const openCard = (locationId: number) => {
-    setSelectedLocationId(locationId);
+  // ---- Actions ----
+  const openCard = (pubId: number) => {
+    select(pubId);
     setIsCardViewerOpen(true);
   };
-
   const closeCardViewer = useCallback(() => setIsCardViewerOpen(false), []);
 
-  // Android's Back button shrinks the map rather than leaving the app
-  useBackButton(() => setIsMapExpanded(false), isMapExpanded);
-
-  // While the map fills the screen: Escape shrinks it, and the page behind
-  // it can't scroll
-  useEffect(() => {
-    if (!isMapExpanded) {
-      return;
-    }
-    const onKeyDown = (event: KeyboardEvent) => {
-      // Escape closes a dialog open on top of the map first
-      const dialogOpen = document.querySelector(
-        '.visit-form-modal-backdrop, .card-viewer-backdrop',
-      );
-      if (event.key === 'Escape' && !dialogOpen) {
-        setIsMapExpanded(false);
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isMapExpanded]);
-
-  // Closes the card and brings the map, now centred on the pub, into view
-  const showSelectedOnMap = () => {
-    setIsCardViewerOpen(false);
-    if (!isMapExpanded) {
-      mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+  // Selects a pub anywhere, then opens the Add visit form for it
+  const checkInAt = (pubId: number) => {
+    selectAnyPub(pubId);
+    editor.openAdd();
   };
-
-  useEffect(() => {
-    if (!filteredLocations.some((location) => location.id === selectedLocationId)) {
-      setSelectedLocationId(filteredLocations[0]?.id ?? locations[0]?.id ?? 0);
-    }
-  }, [filteredLocations, selectedLocationId]);
-
-  const getVisits = (id: number) => {
-    const visitsBySelectedLocation = indexedVisits[id];
-    return !visitsBySelectedLocation ? 0 : visitsBySelectedLocation.length;
-  };
-
-  const hasVisitsForSelectedLocation = Boolean(
-    indexedVisits[selectedLocationId]?.length,
-  );
 
   const handleDeleteVisit = () => {
-    if (!visitPendingDelete) {
-      return;
-    }
+    if (!visitPendingDelete) return;
     const remaining = (indexedVisits[visitPendingDelete.locationId]?.length ?? 1) - 1;
-    setVisits((current) => current.filter((visit) => visit.id !== visitPendingDelete.id));
+    visitsApi.deleteVisit(visitPendingDelete.id);
     setVisitPendingDelete(null);
     if (remaining === 0) {
       setIsHistoryOpen(false);
     }
   };
 
-  const selectedVisitCount = indexedVisits[selectedLocationId]?.length ?? 0;
-
-  const getRating = (id: number): number => {
-    const visitsBySelectedLocation = indexedVisits[id];
-    return !visitsBySelectedLocation ? -1 : visitsBySelectedLocation[0].rating;
-  };
+  const { isCrawlMode } = crawl;
 
   return (
     <div className={`app-shell ${isCrawlMode ? 'is-crawl-mode' : ''}`}>
@@ -574,81 +151,22 @@ function App() {
               <p className="hero-copy">Log your visits and rate each pub.</p>
             </div>
           </header>
+
           {backup.isReminderDue && !isCrawlMode && (
-            <BackupReminder backup={backup} visitCount={visits.length} today={getTodayDate()} />
+            <BackupReminder backup={backup} visitCount={visits.length} today={today} />
           )}
 
-          <div className="map-selector-container">
-            <div className="map-selector-actions">
-              <ActionButton variant="primary" onClick={openAddVisit}>
-                Add visit
-              </ActionButton>
-              <button
-                type="button"
-                className="visit-form-close"
-                onClick={() => setIsHistoryOpen(true)}
-                disabled={!hasVisitsForSelectedLocation}
-              >
-                Visits ({selectedVisitCount})
-              </button>
-              <button
-                type="button"
-                className="visit-form-close"
-                onClick={() => setIsCrawlPlannerOpen(true)}
-                // One crawl at a time: end or finish this one first
-                disabled={isCrawlMode}
-                title={isCrawlMode ? 'Finish or end this crawl to plan another' : undefined}
-              >
-                🍺 Plan a crawl
-              </button>
-              <button
-                type="button"
-                className={`visit-form-close live-toggle ${isLiveLocationOn ? 'is-on' : ''}`}
-                onClick={() => setIsLiveLocationOn((on) => !on)}
-                aria-pressed={isLiveLocationOn}
-                title="Spot when you're at a Wetherspoon, while the app is open"
-              >
-                📍 Live location: {isLiveLocationOn ? 'On' : 'Off'}
-              </button>
-
-              {selectedLocation && (
-                <div className={`selected-visit-details ${!hasVisitsForSelectedLocation ? 'is-unvisited' : ''}`}>
-                  {hasVisitsForSelectedLocation && indexedVisits[selectedLocationId]?.[0] ? (
-                    <>
-                      <span className="details-value">
-                        {selectedLocation.name}
-                      </span>
-                      <span className="details-divider">·</span>
-                      <strong className="details-value">
-                        {getVisitDate(selectedLocation.id)}
-                      </strong>
-                      <span className="details-divider">·</span>
-                      <StarRating
-                        rating={indexedVisits[selectedLocationId][0].rating}
-                        maxRating={3}
-                        disabled={true}
-                        size={14}
-                      />
-                      {selectedVisitCount > 1 && (
-                        <>
-                          <span className="details-divider">·</span>
-                          <span className="details-value">{selectedVisitCount} visits</span>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <span className="details-value">
-                        {selectedLocation.name}
-                      </span>
-                      <span className="details-divider">·</span>
-                      <span className="details-unvisited">Not visited yet</span>
-                    </>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
+          <MapToolbar
+            onAddVisit={editor.openAdd}
+            visitCount={selectedStats.count}
+            onShowVisits={() => setIsHistoryOpen(true)}
+            onPlanCrawl={crawl.openPlanner}
+            canPlanCrawl={!isCrawlMode}
+            isLiveLocationOn={live.isOn}
+            onToggleLiveLocation={live.toggle}
+          >
+            <SelectedPubSummary pub={selectedPub} visits={indexedVisits[selectedPub.id] ?? []} />
+          </MapToolbar>
 
           {live.error && (
             <p className="near-me-error" role="alert">
@@ -656,94 +174,87 @@ function App() {
             </p>
           )}
 
-          {bannerPub && (
+          {live.bannerPub && (
             <ArrivalBanner
-              pub={bannerPub}
-              crawlStop={
-                arrivalCrawlIndex !== -1 && crawl
-                  ? { number: arrivalCrawlIndex + 1, of: crawl.stops.length }
-                  : undefined
-              }
+              pub={live.bannerPub}
+              crawlStop={live.crawlStop}
               onShow={() => {
-                selectAnyPub(bannerPub.id);
+                selectAnyPub(live.bannerPub!.id);
                 scrollToMap();
               }}
-              onCheckIn={() => {
-                selectAnyPub(bannerPub.id);
-                openAddVisit();
-              }}
-              onDismiss={() =>
-                setDismissedArrivals((current) => new Set(current).add(bannerPub.id))
-              }
+              onCheckIn={() => checkInAt(live.bannerPub!.id)}
+              onDismiss={() => live.dismiss(live.bannerPub!.id)}
             />
           )}
 
           {isCardViewerOpen && (
             <CardViewer
-              pub={selectedLocation}
-              rating={getRating(selectedLocation.id)}
-              visitCount={getVisits(selectedLocation.id)}
-              date={getVisitDate(selectedLocation.id)}
+              pub={selectedPub}
+              rating={selectedStats.rating}
+              visitCount={selectedStats.count}
+              date={selectedStats.date}
               distanceMiles={
-                userPosition
+                nearMe.userPosition
                   ? distanceMiles(
-                      userPosition.lat,
-                      userPosition.lon,
-                      selectedLocation.lat,
-                      selectedLocation.lon,
+                      nearMe.userPosition.lat,
+                      nearMe.userPosition.lon,
+                      selectedPub.lat,
+                      selectedPub.lon,
                     )
                   : undefined
               }
               onAddVisit={() => {
                 setIsCardViewerOpen(false);
-                openAddVisit();
+                editor.openAdd();
               }}
               onShowVisits={() => {
                 setIsCardViewerOpen(false);
                 setIsHistoryOpen(true);
               }}
-              onShowOnMap={showSelectedOnMap}
+              onShowOnMap={() => {
+                setIsCardViewerOpen(false);
+                scrollToMap('center');
+              }}
               onClose={closeCardViewer}
               trail={trail}
             />
           )}
 
-          {isCrawlPlannerOpen && (
+          {crawl.isPlannerOpen && (
             <CrawlPlanner
               locations={locations}
               visitedIds={visitedLocationIds}
-              selectedPub={selectedLocation}
-              today={getTodayDate()}
-              hasCrawl={crawl !== null}
-              onPlan={handleCrawlPlanned}
-              onClose={() => setIsCrawlPlannerOpen(false)}
+              selectedPub={selectedPub}
+              today={today}
+              hasCrawl={crawl.crawl !== null}
+              onPlan={crawl.start}
+              onClose={crawl.closePlanner}
             />
           )}
 
-          {isEndCrawlPending && (
+          {crawl.isEndPending && (
             <ConfirmDialog
               title="End this crawl?"
               message="The route will be cleared. Visits you've logged on the way are kept."
               confirmLabel="End crawl"
               variant="danger"
-              onConfirm={() => {
-                setCrawl(null);
-                setIsBrowsingDuringCrawl(false);
-                setIsEndCrawlPending(false);
-              }}
-              onCancel={() => setIsEndCrawlPending(false)}
+              onConfirm={crawl.end}
+              onCancel={crawl.cancelEnd}
             />
           )}
 
-          {isHistoryOpen && hasVisitsForSelectedLocation && (
+          {isHistoryOpen && selectedStats.count > 0 && (
             <VisitHistory
-              pubName={selectedLocation.name}
-              visits={indexedVisits[selectedLocationId]}
+              pubName={selectedPub.name}
+              visits={indexedVisits[selectedPub.id]}
               onAdd={() => {
                 setIsHistoryOpen(false);
-                openAddVisit();
+                editor.openAdd();
               }}
-              onEdit={openEditVisit}
+              onEdit={(visit) => {
+                setIsHistoryOpen(false);
+                editor.openEdit(visit);
+              }}
               onDelete={setVisitPendingDelete}
               onClose={() => setIsHistoryOpen(false)}
             />
@@ -754,7 +265,7 @@ function App() {
               title="Delete visit?"
               message={
                 <>
-                  Your visit to <strong>{selectedLocation.name}</strong> on{' '}
+                  Your visit to <strong>{selectedPub.name}</strong> on{' '}
                   {formatDate(visitPendingDelete.date)} and its rating will be deleted.
                   This can't be undone.
                 </>
@@ -766,65 +277,40 @@ function App() {
             />
           )}
 
-          {isVisitFormOpen && (
-            <div
-              className="visit-form-modal-backdrop"
-              onClick={closeVisitForm}
-            >
-              <div
-                className="visit-form-modal"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <div className="visit-form-modal-header">
-                  <h2>{editingVisitId ? 'Edit visit' : 'Add visit'}</h2>
-                  <button
-                    type="button"
-                    className="visit-form-close"
-                    onClick={closeVisitForm}
-                  >
-                    Close
-                  </button>
-                </div>
-                <VisitForm
-                  locations={locations}
-                  selectedLocationId={selectedLocationId}
-                  form={form}
-                  setForm={setForm}
-                  onLocationSelected={handleSelectLocation}
-                  onRatingUpdated={onRatingUpdated}
-                  onSubmit={handleSubmit}
-                  isEditing={editingVisitId !== null}
-                  maxDate={getTodayDate()}
-                />
-              </div>
-            </div>
+          {editor.isOpen && (
+            <VisitFormModal
+              editor={editor}
+              locations={locations}
+              selectedId={selectedId}
+              onSelectPub={select}
+            />
           )}
 
           <div className="map-crawl-layout">
             <div
-              className={`map-viewport-wrapper ${isMapExpanded ? 'is-expanded' : ''}`}
+              className={`map-viewport-wrapper ${mapExpanded.isExpanded ? 'is-expanded' : ''}`}
               ref={mapRef}
             >
               <Map
-                locations={filteredLocations}
+                locations={filters.filteredLocations}
                 visitedLocationIds={visitedLocationIds}
-                selectedLocationId={selectedLocationId}
+                selectedLocationId={selectedId}
                 onLocationSelect={selectAnyPub}
                 initialBounds={initialMapBounds}
-                userPosition={userPosition}
-                expanded={isMapExpanded}
-                onToggleExpanded={() => setIsMapExpanded((expanded) => !expanded)}
-                onNearMe={handleNearMe}
-                locating={locating}
-                locationError={locationError}
-                crawlRoute={crawlRoute}
-                routeFitKey={routeFitKey}
+                userPosition={nearMe.userPosition}
+                expanded={mapExpanded.isExpanded}
+                onToggleExpanded={mapExpanded.toggle}
+                onNearMe={nearMe.nearMe}
+                locating={nearMe.locating}
+                locationError={nearMe.locationError}
+                crawlRoute={crawl.route}
+                routeFitKey={crawl.routeFitKey}
                 livePosition={live.position}
               >
                 <SelectedPubBar
-                  pub={selectedLocation}
-                  visitCount={getVisits(selectedLocation.id)}
-                  date={getVisitDate(selectedLocation.id)}
+                  pub={selectedPub}
+                  visitCount={selectedStats.count}
+                  date={selectedStats.date}
                   trail={trail}
                   onOpen={() => setIsCardViewerOpen(true)}
                 />
@@ -832,84 +318,78 @@ function App() {
 
               {/* Hidden on phones, where the bar above shows instead */}
               <SpoonCard
-                id={selectedLocation.id}
-                name={selectedLocation.name}
-                city={selectedLocation.city}
-                region={selectedLocation.region}
-                rarity={selectedLocation.rarity}
-                rating={getRating(selectedLocationId)}
-                history={selectedLocation.history}
-                visited={getVisits(selectedLocation.id) > 0}
-                visitCount={getVisits(selectedLocation.id)}
-                date={getVisitDate(selectedLocationId)}
+                id={selectedPub.id}
+                name={selectedPub.name}
+                city={selectedPub.city}
+                region={selectedPub.region}
+                rarity={selectedPub.rarity}
+                rating={selectedStats.rating}
+                history={selectedPub.history}
+                visited={selectedStats.count > 0}
+                visitCount={selectedStats.count}
+                date={selectedStats.date}
                 small={true}
                 compact={true}
-                hasImage={Boolean(selectedLocation.imgType)}
-                nearestMiles={selectedLocation.nearestNeighborMiles}
-                secondMiles={selectedLocation.secondNeighborMiles}
-                website={selectedLocation.website}
-                menu={selectedLocation.menu}
+                hasImage={Boolean(selectedPub.imgType)}
+                nearestMiles={selectedPub.nearestNeighborMiles}
+                secondMiles={selectedPub.secondNeighborMiles}
+                website={selectedPub.website}
+                menu={selectedPub.menu}
                 onClick={() => setIsCardViewerOpen(true)}
               />
               <div className="map-card-nav">
                 <TrailNav trail={trail} variant="map" />
               </div>
             </div>
-            {crawl && (
+
+            {crawl.crawl && (
               <CrawlPanel
-                crawl={crawl}
+                crawl={crawl.crawl}
                 pubsById={pubsById}
                 indexedVisits={indexedVisits}
                 onSelectPub={(pubId) => {
                   selectAnyPub(pubId);
                   scrollToMap();
                 }}
-                onCheckIn={checkInAtStop}
-                onShowRoute={showCrawlRoute}
-                onEnd={() => setIsEndCrawlPending(true)}
-                onFinish={() => {
-                  setCrawl(null);
-                  setIsBrowsingDuringCrawl(false);
+                onCheckIn={checkInAt}
+                onShowRoute={() => {
+                  crawl.showRoute();
+                  scrollToMap();
                 }}
+                onEnd={crawl.requestEnd}
+                onFinish={crawl.end}
                 isFocused={isCrawlMode}
-                onBrowse={() => setIsBrowsingDuringCrawl(true)}
-                onBackToCrawl={backToCrawl}
+                onBrowse={crawl.browse}
+                onBackToCrawl={crawl.backToCrawl}
                 unlockedNow={unlockedNow}
               />
             )}
           </div>
+
           {!isCrawlMode && (
-            <div className="hero-metrics">
-              <div className="metric-card">
-                <strong>{uniqueVisitedCount}</strong>
-                <span>Visited Spoons</span>
-              </div>
-              <div className="metric-card">
-                <strong>{completionPercentage}%</strong>
-                <span>Completion</span>
-              </div>
-            </div>
+            <VisitMetrics visitedCount={visitsApi.uniqueVisitedCount} totalCount={locations.length} />
           )}
         </div>
+
         {!isCrawlMode && (
           <Visits
-            locations={filteredLocations}
+            locations={filters.filteredLocations}
             regions={regions}
             indexedVisits={indexedVisits}
             onOpenCard={openCard}
-            selectedLocationId={selectedLocationId}
-            searchTerm={searchTerm}
-            selectedRegion={selectedRegion}
-            visitFilter={visitFilter}
-            onSearchChange={setSearchTerm}
-            onRegionChange={setSelectedRegion}
-            onVisitFilterChange={setVisitFilter}
-            sortBy={sortBy}
-            onSortChange={setSortBy}
-            userPosition={userPosition}
-            onNearMe={handleNearMe}
-            locating={locating}
-            locationError={locationError}
+            selectedLocationId={selectedId}
+            searchTerm={filters.searchTerm}
+            selectedRegion={filters.selectedRegion}
+            visitFilter={filters.visitFilter}
+            onSearchChange={filters.setSearchTerm}
+            onRegionChange={filters.setSelectedRegion}
+            onVisitFilterChange={filters.setVisitFilter}
+            sortBy={filters.sortBy}
+            onSortChange={filters.setSortBy}
+            userPosition={nearMe.userPosition}
+            onNearMe={nearMe.nearMe}
+            locating={nearMe.locating}
+            locationError={nearMe.locationError}
           />
         )}
       </section>
@@ -925,13 +405,10 @@ function App() {
           <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
           <BackupPanel
             visits={visits}
-            onVisitsChange={setVisits}
-            crawl={crawl}
+            onVisitsChange={visitsApi.setVisits}
+            crawl={crawl.crawl}
             prepareCrawl={(value) => sanitiseCrawl(value, locations)}
-            onCrawlRestore={(restored) => {
-              setCrawl(restored);
-              setRouteFitKey((key) => key + 1);
-            }}
+            onCrawlRestore={crawl.restore}
             backup={backup}
           />
         </section>

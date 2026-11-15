@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import SpoonCard from './SpoonCard';
 import type { PubLocation } from '../types';
 import './CardViewer.css';
-import { useBackButton } from '../backButton';
+import { useDismiss } from '../hooks/useDismiss';
+import { useBodyScrollLock } from '../hooks/useBodyScrollLock';
 import type { PubTrail } from '../trail';
 import { TrailNav } from './TrailNav';
 
@@ -50,26 +51,11 @@ export const CardViewer = ({
   const swipeStart = useRef<{ x: number; y: number; inHistory: boolean } | null>(null);
   // Set when a touch was a swipe, so the tap it ends in doesn't flip the card
   const swiped = useRef(false);
-  // Android's Back button closes the card rather than leaving the app
-  useBackButton(onClose);
 
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-
-    // Stop the page behind from scrolling while the viewer is open
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose]);
+  // Escape and Android's Back button close the card; the page behind
+  // can't scroll while it's open
+  useDismiss(onClose);
+  useBodyScrollLock();
 
   const onTouchStart = (event: React.TouchEvent) => {
     const target = event.target as HTMLElement;

@@ -38,6 +38,12 @@ npm test             # run once
 npm run test:watch   # rerun on every change
 ```
 
+GitHub Actions runs the lint, tests and build on every push ([.github/workflows/ci.yml](.github/workflows/ci.yml)). The scraped pub data isn't in the repo, so CI uses [assets/spoons_sample.json](assets/spoons_sample.json), a few made-up pubs in the same format. You can do the same to try the app without running the pipeline:
+
+```bash
+cp assets/spoons_sample.json assets/spoons_enriched.json
+```
+
 ### Android
 
 ```bash

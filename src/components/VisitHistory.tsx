@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
 import type { VisitEntry } from '../types';
 import { formatDate } from '../utils';
 import { ActionButton } from './ActionButton';
 import StarRating from './StarRating';
+import { Modal } from './Modal';
 
 type VisitHistoryProps = {
   pubName: string;
@@ -23,57 +23,32 @@ export const VisitHistory = ({
   onDelete,
   onClose,
 }: VisitHistoryProps) => {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
   return (
-    <div className="visit-form-modal-backdrop" onClick={onClose}>
-      <div
-        className="visit-form-modal visit-history"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="visit-history-title"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="visit-form-modal-header">
-          <h2 id="visit-history-title">Visits to {pubName}</h2>
-          <button type="button" className="visit-form-close" onClick={onClose}>
-            Close
-          </button>
-        </div>
+    <Modal title={`Visits to ${pubName}`} onClose={onClose} className="visit-history">
+      <ul className="visit-history-list">
+        {visits.map((visit) => (
+          <li key={visit.id}>
+            <div className="visit-history-details">
+              <strong>{formatDate(visit.date)}</strong>
+              <StarRating rating={visit.rating} maxRating={3} disabled={true} size={16} />
+            </div>
+            <div className="visit-history-actions">
+              <button type="button" className="visit-form-close" onClick={() => onEdit(visit)}>
+                Edit
+              </button>
+              <button
+                type="button"
+                className="visit-history-delete"
+                onClick={() => onDelete(visit)}
+              >
+                Delete
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
 
-        <ul className="visit-history-list">
-          {visits.map((visit) => (
-            <li key={visit.id}>
-              <div className="visit-history-details">
-                <strong>{formatDate(visit.date)}</strong>
-                <StarRating rating={visit.rating} maxRating={3} disabled={true} size={16} />
-              </div>
-              <div className="visit-history-actions">
-                <button type="button" className="visit-form-close" onClick={() => onEdit(visit)}>
-                  Edit
-                </button>
-                <button
-                  type="button"
-                  className="visit-history-delete"
-                  onClick={() => onDelete(visit)}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-
-        <ActionButton onClick={onAdd}>Add another visit</ActionButton>
-      </div>
-    </div>
+      <ActionButton onClick={onAdd}>Add another visit</ActionButton>
+    </Modal>
   );
 };

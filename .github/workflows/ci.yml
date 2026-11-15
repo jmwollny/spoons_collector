@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # The real pub data is scraped and not in the repo, so build and test
+      # with a small set of made-up pubs in the same format
+      - name: Use the sample pub data
+        run: cp assets/spoons_sample.json assets/spoons_enriched.json
+
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
