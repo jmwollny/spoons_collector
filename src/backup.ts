@@ -2,16 +2,26 @@ import { Capacitor } from '@capacitor/core';
 import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import type { VisitEntry } from './types';
+import type { Crawl } from './crawl';
 
-// Identifies a backup file made by this app, and its format version
+// Identifies a backup file made by this app, and its format version.
+// Version 2 added the crawl under way; version 1 files are still read.
 const BACKUP_APP = 'spoons_collector';
-const BACKUP_VERSION = 1;
+const BACKUP_VERSION = 2;
 
 type BackupFile = {
   app: typeof BACKUP_APP;
   version: number;
   exportedAt: string;
   visits: VisitEntry[];
+  // The crawl under way when the backup was made (version 2 on)
+  crawl?: Crawl | null;
+};
+
+export type Backup = {
+  visits: VisitEntry[];
+  // As found in the file: check it with sanitiseCrawl before using it
+  crawl: unknown;
 };
 
 const isVisitEntry = (value: unknown): value is VisitEntry => {
@@ -32,10 +42,10 @@ const isVisitEntry = (value: unknown): value is VisitEntry => {
 };
 
 /**
- * Reads the visits from a backup file's text.
+ * Reads the visits (and any crawl) from a backup file's text.
  * Throws an Error with a message fit to show the user if the file isn't one.
  */
-export const parseBackup = (text: string): VisitEntry[] => {
+export const parseBackup = (text: string): Backup => {
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -53,7 +63,7 @@ export const parseBackup = (text: string): VisitEntry[] => {
   if (!backup.visits.every(isVisitEntry)) {
     throw new Error('That backup is damaged: some of its visits are unreadable.');
   }
-  return backup.visits;
+  return { visits: backup.visits, crawl: backup.crawl ?? null };
 };
 
 /**
@@ -71,12 +81,14 @@ export const mergeVisits = (current: VisitEntry[], restored: VisitEntry[]) => {
 const backupFileName = (date: string) => `spoons-collector-backup-${date}.json`;
 
 /**
- * Saves the visits as a backup file: a download in a browser, and the
- * share sheet on a phone (to save it to Drive or Files, or send it).
+ * Saves the visits, and the crawl under way, as a backup file: a download
+ * in a browser, and the share sheet on a phone (to save it to Drive or
+ * Files, or send it).
  * @returns false if the share sheet was closed without saving
  */
-export const exportVisits = async (
+export const exportBackup = async (
   visits: VisitEntry[],
+  crawl: Crawl | null,
   today: string,
 ): Promise<boolean> => {
   const backup: BackupFile = {
@@ -84,6 +96,7 @@ export const exportVisits = async (
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     visits,
+    crawl,
   };
   const text = JSON.stringify(backup, null, 2);
   const fileName = backupFileName(today);

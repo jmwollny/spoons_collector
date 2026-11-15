@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import type { VisitEntry } from '../types';
-import { exportVisits, mergeVisits, parseBackup } from '../backup';
+import { mergeVisits, parseBackup } from '../backup';
+import type { BackupControls } from '../backupReminder';
+import type { Crawl } from '../crawl';
 import { formatDate } from '../utils';
 import { ActionButton } from './ActionButton';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -8,19 +10,12 @@ import { ConfirmDialog } from './ConfirmDialog';
 type BackupPanelProps = {
   visits: VisitEntry[];
   onVisitsChange: (visits: VisitEntry[]) => void;
-  today: string;
-};
-
-// When this device last made a backup. Only a reminder, so it lives in local
-// storage next to the visits.
-const lastBackupKey = 'spoons-collector-last-backup';
-
-const readLastBackup = () => {
-  try {
-    return window.localStorage.getItem(lastBackupKey);
-  } catch {
-    return null;
-  }
+  // The crawl under way, if any
+  crawl: Crawl | null;
+  // Checks a crawl from a backup file; null if it isn't usable
+  prepareCrawl: (value: unknown) => Crawl | null;
+  onCrawlRestore: (crawl: Crawl) => void;
+  backup: BackupControls;
 };
 
 type Status = { kind: 'success' | 'error'; text: string } | null;
@@ -29,17 +24,27 @@ type PendingRestore = {
   visits: VisitEntry[];
   addedCount: number;
   fileCount: number;
+  // The backup's crawl, restored only if there's no crawl under way
+  crawl: Crawl | null;
+  // Whether the backup had a crawl we're not restoring over the current one
+  crawlSkipped: boolean;
 };
 
 const plural = (count: number, word: string) =>
   `${count} ${word}${count === 1 ? '' : 's'}`;
 
 /**
- * Backs up the visits to a file and restores them from one. Visits otherwise
- * live only in this browser or phone, and are lost if its data is cleared.
+ * Backs up the visits (and any crawl under way) to a file and restores them
+ * from one. Visits otherwise live only on this browser or phone.
  */
-export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps) => {
-  const [lastBackup, setLastBackup] = useState(readLastBackup);
+export const BackupPanel = ({
+  visits,
+  onVisitsChange,
+  crawl,
+  prepareCrawl,
+  onCrawlRestore,
+  backup,
+}: BackupPanelProps) => {
   const [status, setStatus] = useState<Status>(null);
   const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -47,17 +52,14 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
   const handleBackup = async () => {
     setStatus(null);
     try {
-      const saved = await exportVisits(visits, today);
+      const saved = await backup.backUp();
       if (!saved) {
         return;
       }
-      try {
-        window.localStorage.setItem(lastBackupKey, today);
-      } catch {
-        // Only the reminder is lost
-      }
-      setLastBackup(today);
-      setStatus({ kind: 'success', text: `Backed up ${plural(visits.length, 'visit')}.` });
+      setStatus({
+        kind: 'success',
+        text: `Backed up ${plural(visits.length, 'visit')}${crawl ? ' and your crawl' : ''}.`,
+      });
     } catch (error) {
       setStatus({
         kind: 'error',
@@ -77,15 +79,23 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
     setStatus(null);
     try {
       const restored = parseBackup(await file.text());
-      const { visits: merged, addedCount } = mergeVisits(visits, restored);
-      if (addedCount === 0) {
+      const { visits: merged, addedCount } = mergeVisits(visits, restored.visits);
+      const backupCrawl = prepareCrawl(restored.crawl);
+      const crawlToRestore = crawl ? null : backupCrawl;
+      if (addedCount === 0 && !crawlToRestore) {
         setStatus({
           kind: 'success',
           text: 'Nothing to restore: every visit in that backup is already here.',
         });
         return;
       }
-      setPendingRestore({ visits: merged, addedCount, fileCount: restored.length });
+      setPendingRestore({
+        visits: merged,
+        addedCount,
+        fileCount: restored.visits.length,
+        crawl: crawlToRestore,
+        crawlSkipped: Boolean(backupCrawl && crawl),
+      });
     } catch (error) {
       setStatus({
         kind: 'error',
@@ -99,9 +109,14 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
       return;
     }
     onVisitsChange(pendingRestore.visits);
+    if (pendingRestore.crawl) {
+      onCrawlRestore(pendingRestore.crawl);
+    }
     setStatus({
       kind: 'success',
-      text: `Restored ${plural(pendingRestore.addedCount, 'visit')}.`,
+      text: `Restored ${plural(pendingRestore.addedCount, 'visit')}${
+        pendingRestore.crawl ? ' and your crawl' : ''
+      }.`,
     });
     setPendingRestore(null);
   };
@@ -111,13 +126,13 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
       <div className="section-heading">
         <h2>Your visits</h2>
         <p>
-          Visits are only saved on this device. Back them up to keep them safe or
-          move them to another device.
+          Visits are only saved on this device. Back them up (with any crawl
+          under way) to keep them safe or move them to another device.
         </p>
       </div>
 
       <div className="backup-actions">
-        <ActionButton onClick={handleBackup} disabled={visits.length === 0}>
+        <ActionButton onClick={handleBackup} disabled={visits.length === 0 && !crawl}>
           Back up visits
         </ActionButton>
         <button
@@ -138,7 +153,7 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
 
       <p className="backup-last">
         Last backup on this device:{' '}
-        <strong>{lastBackup ? formatDate(lastBackup) : 'never'}</strong>
+        <strong>{backup.lastBackup ? formatDate(backup.lastBackup) : 'never'}</strong>
       </p>
 
       {status && (
@@ -156,6 +171,10 @@ export const BackupPanel = ({ visits, onVisitsChange, today }: BackupPanelProps)
               {plural(pendingRestore.addedCount, 'visit')} will be added to the{' '}
               {plural(visits.length, 'visit')} already here. Nothing here is removed
               or changed.
+              {pendingRestore.crawl &&
+                ` It also has a crawl of ${plural(pendingRestore.crawl.stops.length, 'pub')} from ${pendingRestore.crawl.startLabel}, which will be restored too.`}
+              {pendingRestore.crawlSkipped &&
+                " Its crawl isn't restored, as you have one under way."}
             </>
           }
           confirmLabel="Restore"

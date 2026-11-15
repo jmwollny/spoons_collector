@@ -307,15 +307,45 @@ export const formatDuration = (minutes: number) => {
 
 const STORAGE_KEY = 'spoons-collector-crawl-v1';
 
-/** The saved crawl, without any stops whose pub is no longer in the data */
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+/**
+ * A crawl read from storage or a backup file, checked to be one, without
+ * any stops whose pub is no longer in the data. Null if it isn't a crawl or
+ * no stops are left.
+ */
+export const sanitiseCrawl = (value: unknown, locations: PubLocation[]): Crawl | null => {
+  if (
+    !isObject(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.date !== 'string' ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value.date) ||
+    typeof value.startLabel !== 'string' ||
+    typeof value.startLat !== 'number' ||
+    typeof value.startLon !== 'number' ||
+    typeof value.stayMinutes !== 'number' ||
+    !Array.isArray(value.stops)
+  ) {
+    return null;
+  }
+  const ids = new Set(locations.map((location) => location.id));
+  const stops = value.stops.filter(
+    (stop): stop is CrawlStop =>
+      isObject(stop) &&
+      typeof stop.pubId === 'number' &&
+      typeof stop.legMiles === 'number' &&
+      typeof stop.arrive === 'number' &&
+      ids.has(stop.pubId),
+  );
+  return stops.length > 0 ? ({ ...value, stops } as Crawl) : null;
+};
+
+/** The saved crawl, if there is one */
 export const loadCrawl = (locations: PubLocation[]): Crawl | null => {
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return null;
-    const crawl = JSON.parse(saved) as Crawl;
-    const ids = new Set(locations.map((location) => location.id));
-    const stops = crawl.stops.filter((stop) => ids.has(stop.pubId));
-    return stops.length > 0 ? { ...crawl, stops } : null;
+    return saved ? sanitiseCrawl(JSON.parse(saved), locations) : null;
   } catch {
     return null;
   }

@@ -2,7 +2,7 @@
 
 Collect Wetherspoon pubs like trading cards. Every pub in the UK gets a card with its photo, its history and a rarity based on how isolated it is from other Wetherspoons. Log a visit and a star rating, and watch your collection grow on the map.
 
-Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits are stored in your browser's local storage, so there is no account or server.
+Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits are stored on your device (in local storage, with a second copy in the app's own settings store), so there is no account or server. Back them up from the **Your visits** panel; backups include any crawl under way.
 
 ## Getting started
 
@@ -28,6 +28,15 @@ The repository holds the code and the OpenStreetMap-derived pub list, but **not*
    ```bash
    npm run dev
    ```
+
+### Tests
+
+The logic that's easy to get subtly wrong (crawl planning, Previous and Next, arrival detection, saving visits, backups, rarity) has tests:
+
+```bash
+npm test             # run once
+npm run test:watch   # rerun on every change
+```
 
 ### Android
 

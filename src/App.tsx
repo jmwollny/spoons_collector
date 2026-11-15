@@ -19,7 +19,10 @@ import { VisitHistory } from './components/VisitHistory';
 import { CardViewer } from './components/CardViewer';
 import { SelectedPubBar } from './components/SelectedPubBar';
 import { useBackButton } from './backButton';
-import { isStopDone, loadCrawl, saveCrawl, type Crawl } from './crawl';
+import { loadVisits, loadVisitsCopy, reconcileVisits, saveVisitsCopy, storageKey } from './visits';
+import { isStopDone, loadCrawl, sanitiseCrawl, saveCrawl, type Crawl } from './crawl';
+import { useBackup } from './backupReminder';
+import { BackupReminder } from './components/BackupReminder';
 import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import type { CrawlRoute } from './components/Map';
@@ -31,41 +34,12 @@ import { TrailNav } from './components/TrailNav';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
 
-// v1 recorded visits against OSM ids; v2 records them against Wetherspoon ids
-const storageKey = 'spoons-collector-v2';
-const legacyStorageKey = 'spoons-collector-v1';
-
 // The app identifies pubs by Wetherspoon's own id (jdwId) rather than the OSM
 // id, which changes whenever a mapper redraws a pub and would orphan the
 // visits recorded against it. The pipeline warns about any pub without one.
 const locations: PubLocation[] = spoons
   .filter((spoon) => spoon.jdwId)
   .map(({ id, jdwId, ...spoon }) => ({ ...spoon, id: jdwId, osmId: id }));
-
-/**
- * Reads the saved visits. The first time this version runs, visits saved by
- * v1 are converted from OSM ids to Wetherspoon ids. The v1 entry is left in
- * place, so nothing is lost if a visit's pub is no longer in the data.
- */
-const loadVisits = (): VisitEntry[] => {
-  const saved = window.localStorage.getItem(storageKey);
-  if (saved) {
-    return JSON.parse(saved) as VisitEntry[];
-  }
-
-  const legacy = window.localStorage.getItem(legacyStorageKey);
-  if (!legacy) {
-    return [];
-  }
-
-  const idsByOsmId = new globalThis.Map(
-    locations.map((location) => [location.osmId, location.id]),
-  );
-  return (JSON.parse(legacy) as VisitEntry[]).flatMap((visit) => {
-    const id = idsByOsmId.get(visit.locationId);
-    return id === undefined ? [] : [{ ...visit, locationId: id }];
-  });
-};
 
 // Whether live location was left on, remembered between visits
 const liveLocationKey = 'spoons-collector-live-location';
@@ -95,8 +69,11 @@ function App() {
       return [];
     }
 
-    return loadVisits();
+    return loadVisits(locations, window.localStorage);
   });
+  // Until the second copy of the visits has been read (see below), saving
+  // to it would overwrite it with what may be an empty list
+  const [isVisitsCopyLoaded, setIsVisitsCopyLoaded] = useState(false);
   // Local date as YYYY-MM-DD. toISOString() is UTC, which is still "yesterday"
   // for the first hour after midnight during British Summer Time.
   const getTodayDate = () => {
@@ -148,10 +125,27 @@ function App() {
   const [selectedRegion, setSelectedRegion] = useState('all');
   const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
 
-  // Save the visits array into local storage when the visits array is updated.
+  // Visits are saved twice: in local storage, and a second copy in the
+  // app's own settings store (see visits.ts). When the app opens, the copy
+  // brings back any visits missing from local storage, e.g. if Android
+  // cleared the web view's storage.
+  useEffect(() => {
+    loadVisitsCopy()
+      .then((copy) => {
+        setVisits((current) => reconcileVisits(current, copy).visits);
+      })
+      .catch(() => {
+        // No copy to restore from; local storage is all there is
+      })
+      .finally(() => setIsVisitsCopyLoaded(true));
+  }, []);
+
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(visits));
-  }, [visits]);
+    if (isVisitsCopyLoaded) {
+      void saveVisitsCopy(visits);
+    }
+  }, [visits, isVisitsCopyLoaded]);
 
   useEffect(() => {
     saveCrawl(crawl);
@@ -374,6 +368,8 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
+  const backup = useBackup(visits, crawl, getTodayDate());
+
   // ---- Live location: notice when the user is at a pub ----
   const live = useLiveLocation(isLiveLocationOn);
   const arrivedPubId = useArrival(live.position, locations);
@@ -578,6 +574,10 @@ function App() {
               <p className="hero-copy">Log your visits and rate each pub.</p>
             </div>
           </header>
+          {backup.isReminderDue && !isCrawlMode && (
+            <BackupReminder backup={backup} visitCount={visits.length} today={getTodayDate()} />
+          )}
+
           <div className="map-selector-container">
             <div className="map-selector-actions">
               <ActionButton variant="primary" onClick={openAddVisit}>
@@ -923,7 +923,17 @@ function App() {
           />
           <RarityProgress locations={locations} visitedLocationIds={visitedLocationIds} />
           <RegionBreakdown locations={locations} visitedLocationIds={visitedLocationIds} />
-          <BackupPanel visits={visits} onVisitsChange={setVisits} today={getTodayDate()} />
+          <BackupPanel
+            visits={visits}
+            onVisitsChange={setVisits}
+            crawl={crawl}
+            prepareCrawl={(value) => sanitiseCrawl(value, locations)}
+            onCrawlRestore={(restored) => {
+              setCrawl(restored);
+              setRouteFitKey((key) => key + 1);
+            }}
+            backup={backup}
+          />
         </section>
       )}
     </div>
