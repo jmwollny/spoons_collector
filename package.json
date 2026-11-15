@@ -20,6 +20,7 @@
     "@capacitor/geolocation": "^8.2.4",
     "@capacitor/preferences": "^8.0.1",
     "@capacitor/share": "^8.0.3",
+    "@tanstack/react-virtual": "^3.14.26",
     "axios": "^1.18.1",
     "cheerio": "^1.2.0",
     "leaflet": "^1.9.4",

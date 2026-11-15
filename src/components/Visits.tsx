@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import SpoonCard from './SpoonCard';
+import { VirtualCardGrid } from './VirtualCardGrid';
 import type { PubLocation, VisitEntry } from '../types';
 import './Visits.css';
 import { distanceMiles, formatDate } from '../utils';
@@ -245,15 +246,25 @@ export const Visits = ({
         </p>
       )}
 
-      {/* Grid container to wrap the dynamic list of cards */}
-      <div className="visits-cards-grid">
-        {processedLocations.map((pub) => {
+      {/* Only the cards on screen are drawn (see VirtualCardGrid) */}
+      <VirtualCardGrid
+        className="visits-cards-grid"
+        items={processedLocations}
+        getKey={(pub) => pub.id}
+        // 14rem, as before
+        minColumnWidth={224}
+        gap={16}
+        estimatedRowHeight={420}
+        pageScrollQuery="(max-width: 600px)"
+        // A new search, filter or sort starts from the top of the list
+        scrollResetKey={`${searchTerm}|${selectedRegion}|${visitFilter}|${sortBy}`}
+        renderItem={(pub) => {
           const pubHistory = indexedVisits[pub.id] || [];
           // Extract the rating from the most recent visit to this location
           const latestRating = pubHistory[0]?.rating ?? -1;
 
           return (
-            <div key={pub.id} className="gallery-card-wrapper">
+            <div className="gallery-card-wrapper">
               <button
                 type="button"
                 className="visits-card-button"
@@ -283,8 +294,8 @@ export const Visits = ({
               </button>
             </div>
           );
-        })}
-      </div>
+        }}
+      />
     </div>
   );
 };

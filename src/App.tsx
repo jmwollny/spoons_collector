@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
 import './App.css';
 import type { VisitEntry } from './types';
-import { initialMapBounds, locations, pubsById, regions } from './data';
+import type { PubData } from './data';
 import { distanceMiles, formatDate, todayDate } from './utils';
 import { sanitiseCrawl } from './crawl';
 import { unlockedTitles } from './achievements';
@@ -36,7 +36,8 @@ import { CrawlPanel } from './components/CrawlPanel';
 import { ArrivalBanner } from './components/ArrivalBanner';
 import { TrailNav } from './components/TrailNav';
 
-function App() {
+function App({ data }: { data: PubData }) {
+  const { locations, pubsById, regions, initialMapBounds } = data;
   const today = todayDate();
 
   // ---- Visits, and which pubs are shown and selected ----
@@ -67,7 +68,7 @@ function App() {
   // ---- Crawls ----
   const unlockedNow = useMemo(
     () => unlockedTitles(locations, visitedLocationIds, indexedVisits),
-    [visitedLocationIds, indexedVisits],
+    [locations, visitedLocationIds, indexedVisits],
   );
   const crawl = useCrawlSession({
     locations,

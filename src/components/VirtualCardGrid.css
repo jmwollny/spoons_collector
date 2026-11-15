@@ -1,0 +1,23 @@
+/* The full height of the list, so it scrolls as if every card were there */
+.virtual-grid {
+  position: relative;
+  width: 100%;
+}
+
+/* One row of cards, placed by its transform */
+.virtual-grid-row {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: grid;
+  column-gap: 16px;
+  padding-bottom: 16px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px) {
+  .virtual-grid-row {
+    padding-bottom: 4px;
+  }
+}

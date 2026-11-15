@@ -63,3 +63,17 @@ select:not([multiple]):not([size]):focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }
+
+/* Shown while the pub data loads, and if it can't */
+.app-loading,
+.app-load-error {
+  margin: 30vh auto 0;
+  padding: 0 16px;
+  text-align: center;
+  color: #475569;
+  font-size: 1.05rem;
+}
+
+.app-load-error {
+  color: #b91c1c;
+}
