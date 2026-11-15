@@ -3,6 +3,7 @@ import type { VisitEntry } from '../types';
 import type { Crawl } from '../crawl';
 import type { BackupControls } from '../backupReminder';
 import { mergeVisits, parseBackup } from '../backup';
+import type { CompletedCrawl } from '../crawlScore';
 import { plural } from '../utils';
 
 export type BackupStatus = { kind: 'success' | 'error'; text: string } | null;
@@ -18,6 +19,8 @@ export type PendingRestore = {
   crawl: Crawl | null;
   // Whether the backup had a crawl we're not restoring over the current one
   crawlSkipped: boolean;
+  // Finished crawls in the backup that aren't here yet
+  newCrawlHistory: CompletedCrawl[];
 };
 
 type BackupRestoreOptions = {
@@ -28,6 +31,9 @@ type BackupRestoreOptions = {
   prepareCrawl: (value: unknown) => Crawl | null;
   onCrawlRestore: (crawl: Crawl) => void;
   backup: BackupControls;
+  // The crawls finished, and restoring more from a backup
+  crawlHistory?: CompletedCrawl[];
+  onCrawlHistoryRestore?: (crawls: CompletedCrawl[]) => void;
 };
 
 /** Backing up to a file and restoring from one, with messages for the user */
@@ -38,6 +44,8 @@ export const useBackupRestore = ({
   prepareCrawl,
   onCrawlRestore,
   backup,
+  crawlHistory = [],
+  onCrawlHistoryRestore,
 }: BackupRestoreOptions) => {
   const [status, setStatus] = useState<BackupStatus>(null);
   const [pendingRestore, setPendingRestore] = useState<PendingRestore | null>(null);
@@ -69,7 +77,9 @@ export const useBackupRestore = ({
       const { visits: merged, addedCount } = mergeVisits(visits, restored.visits);
       const backupCrawl = prepareCrawl(restored.crawl);
       const crawlToRestore = crawl ? null : backupCrawl;
-      if (addedCount === 0 && !crawlToRestore) {
+      const knownCrawls = new Set(crawlHistory.map((done) => done.id));
+      const newCrawlHistory = restored.crawlHistory.filter((done) => !knownCrawls.has(done.id));
+      if (addedCount === 0 && !crawlToRestore && newCrawlHistory.length === 0) {
         setStatus({
           kind: 'success',
           text: 'Nothing to restore: every visit in that backup is already here.',
@@ -82,6 +92,7 @@ export const useBackupRestore = ({
         fileCount: restored.visits.length,
         crawl: crawlToRestore,
         crawlSkipped: Boolean(backupCrawl && crawl),
+        newCrawlHistory,
       });
     } catch (error) {
       setStatus({ kind: 'error', text: error instanceof Error ? error.message : String(error) });
@@ -94,11 +105,16 @@ export const useBackupRestore = ({
     if (pendingRestore.crawl) {
       onCrawlRestore(pendingRestore.crawl);
     }
+    if (pendingRestore.newCrawlHistory.length > 0) {
+      onCrawlHistoryRestore?.(pendingRestore.newCrawlHistory);
+    }
+    const extras = [
+      pendingRestore.crawl && 'your crawl',
+      pendingRestore.newCrawlHistory.length > 0 && plural(pendingRestore.newCrawlHistory.length, 'finished crawl'),
+    ].filter(Boolean);
     setStatus({
       kind: 'success',
-      text: `Restored ${plural(pendingRestore.addedCount, 'visit')}${
-        pendingRestore.crawl ? ' and your crawl' : ''
-      }.`,
+      text: `Restored ${plural(pendingRestore.addedCount, 'visit')}${extras.length ? ` and ${extras.join(' and ')}` : ''}.`,
     });
     setPendingRestore(null);
   };

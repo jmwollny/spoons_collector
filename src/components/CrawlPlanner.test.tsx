@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CrawlPlanner } from './CrawlPlanner';
-import { leeds1, samplePubs } from '../test/fixtures';
+import { leeds1, makeCrawl, samplePubs } from '../test/fixtures';
 import { getCurrentLocation } from '../location';
+import { encodeCrawl } from '../crawlShare';
+import type { Crawl } from '../crawl';
 
 vi.mock('../location', () => ({ getCurrentLocation: vi.fn() }));
 
@@ -153,5 +155,51 @@ describe('CrawlPlanner', () => {
     const props = renderPlanner();
     await userEvent.click(screen.getByRole('button', { name: 'Close' }));
     expect(props.onClose).toHaveBeenCalledOnce();
+  });
+
+  it('plans a treasure hunt, following the streets by default', async () => {
+    const props = renderPlanner();
+    expect(screen.getByRole('checkbox', { name: /Follow the streets/ })).toBeChecked();
+    expect(screen.getByText(/Only the pubs' locations are sent, not yours/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Treasure hunt/ }));
+    await plan();
+    expect(vi.mocked(props.onPlan).mock.calls[0][0]).toMatchObject({ treasureHunt: true, followStreets: true });
+  });
+
+  it('can keep to straight lines', async () => {
+    const props = renderPlanner();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Follow the streets/ }));
+    await plan();
+    expect(vi.mocked(props.onPlan).mock.calls[0][0].followStreets).toBeUndefined();
+  });
+
+  describe("joining a friend's crawl", () => {
+    const friendsCode = encodeCrawl(makeCrawl({ startTime: 600 }));
+
+    it('joins from a pasted code, following the streets', async () => {
+      const props = renderPlanner({ visitedIds: new Set([1]) });
+      await userEvent.click(screen.getByText("Join a friend's crawl"));
+      const join = screen.getByRole('button', { name: 'Join crawl' });
+      expect(join).toBeDisabled();
+      await userEvent.click(screen.getByLabelText('Paste the code or message they sent'));
+      await userEvent.paste(`Come along! ${friendsCode}`);
+      await userEvent.click(join);
+      const crawl: Crawl = vi.mocked(props.onPlan).mock.calls[0][0];
+      expect(crawl.stops.map((stop) => stop.pubId)).toEqual([1, 2]);
+      expect(crawl.stops[0].wasNew).toBe(false);
+      expect(crawl.followStreets).toBe(true);
+    });
+
+    it('explains a code it cannot use, until the text changes', async () => {
+      const props = renderPlanner();
+      await userEvent.click(screen.getByText("Join a friend's crawl"));
+      const field = screen.getByLabelText('Paste the code or message they sent');
+      await userEvent.type(field, 'hello');
+      await userEvent.click(screen.getByRole('button', { name: 'Join crawl' }));
+      expect(screen.getByRole('alert')).toHaveTextContent("That isn't a crawl code");
+      expect(props.onPlan).not.toHaveBeenCalled();
+      await userEvent.type(field, '!');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
   });
 });

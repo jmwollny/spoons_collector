@@ -47,10 +47,22 @@ export type Crawl = {
   // Achievements already unlocked when the crawl started, so the summary at
   // the end can show what the crawl unlocked (missing on older crawls)
   unlockedAtStart?: string[];
+  // Minutes after midnight the crawl sets off (missing on older crawls)
+  startTime?: number;
+  // Treasure hunt: pub names are hidden behind clues until found or revealed
+  treasureHunt?: boolean;
+  // Stops the user gave up on and revealed
+  revealed?: number[];
+  // Whether to fetch the route along real streets (see streetRoute.ts)
+  followStreets?: boolean;
+  // The route along real streets between the stops, once fetched
+  streetPath?: Array<[number, number]>;
 };
 
 export type CrawlOptions = {
   start: CrawlStart;
+  treasureHunt?: boolean;
+  followStreets?: boolean;
   stopCount: number;
   style: CrawlStyle;
   mode: TravelMode;
@@ -216,29 +228,14 @@ export const planCrawl = (
   const order = shortestOrder(start, chosen).map((index) => chosen[index]);
   const route = start.pub ? [start.pub, ...order] : order;
 
-  const usedMeals = new Set<Meal>();
-  const stops: CrawlStop[] = [];
-  let previous: Point = start;
-  let clock = options.startTime;
-  route.forEach((pub, index) => {
-    const legMiles = miles(previous, pub);
-    clock += travelMinutes(legMiles, options.mode);
-
-    // Each meal goes to the first stop reached in its time window
-    const window = MEAL_WINDOWS.find(
-      ({ meal, from, to }) => !usedMeals.has(meal) && clock >= from && clock < to,
-    );
-    let meal: Meal | null = window?.meal ?? null;
-    if (!meal && index === route.length - 1 && clock >= NIGHTCAP_FROM) {
-      meal = 'Nightcap';
-    }
-    if (meal) {
-      usedMeals.add(meal);
-    }
-
-    stops.push({ pubId: pub.id, legMiles, arrive: clock, meal, wasNew: !visitedIds.has(pub.id) });
-    clock += options.stayMinutes;
-    previous = pub;
+  const legs = route.map((pub, index) => {
+    const legMiles = miles(index === 0 ? start : route[index - 1], pub);
+    return {
+      pubId: pub.id,
+      legMiles,
+      legMinutes: travelMinutes(legMiles, options.mode),
+      wasNew: !visitedIds.has(pub.id),
+    };
   });
 
   return {
@@ -251,9 +248,44 @@ export const planCrawl = (
     startLat: start.lat,
     startLon: start.lon,
     startIsPub: Boolean(start.pub),
-    stops,
+    startTime: options.startTime,
+    treasureHunt: options.treasureHunt || undefined,
+    followStreets: options.followStreets || undefined,
+    stops: scheduleStops(legs, options.startTime, options.stayMinutes),
   };
 };
+
+type Leg = { pubId: number; legMiles: number; legMinutes: number; wasNew: boolean };
+
+/**
+ * When each stop is reached, given how long getting to it takes, and which
+ * meal it's good for: each meal goes to the first stop reached in its time
+ * window, and the last stop late at night is a nightcap.
+ */
+export const scheduleStops = (legs: Leg[], startTime: number, stayMinutes: number): CrawlStop[] => {
+  const usedMeals = new Set<Meal>();
+  let clock = startTime;
+  return legs.map((leg, index) => {
+    clock += leg.legMinutes;
+    const window = MEAL_WINDOWS.find(
+      ({ meal, from, to }) => !usedMeals.has(meal) && clock >= from && clock < to,
+    );
+    let meal: Meal | null = window?.meal ?? null;
+    if (!meal && index === legs.length - 1 && clock >= NIGHTCAP_FROM) {
+      meal = 'Nightcap';
+    }
+    if (meal) {
+      usedMeals.add(meal);
+    }
+    const stop: CrawlStop = { pubId: leg.pubId, legMiles: leg.legMiles, arrive: clock, meal, wasNew: leg.wasNew };
+    clock += stayMinutes;
+    return stop;
+  });
+};
+
+/** When the crawl sets off; worked out from the first stop for older crawls */
+export const crawlStartTime = (crawl: Crawl) =>
+  crawl.startTime ?? crawl.stops[0].arrive - travelMinutes(crawl.stops[0].legMiles, crawl.mode);
 
 const DAY = 24 * 60;
 // Most Wetherspoons have closed by 2am

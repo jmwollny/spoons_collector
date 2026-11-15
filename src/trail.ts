@@ -101,16 +101,19 @@ export const usePubTrail = (
 
 /**
  * Previous and Next along a crawl's stops, in order. From a pub that isn't
- * on the crawl, Next goes to the first stop not yet visited.
+ * on the crawl, Next goes to the first stop not yet visited. Hidden
+ * treasure-hunt stops are skipped, as stepping to one would give it away.
  */
 export const crawlTrail = (
-  stopIds: number[],
+  allStopIds: number[],
   // Stops already visited on the crawl
   doneIds: Set<number>,
   selectedId: number,
   pubsById: Map<number, PubLocation>,
   select: (id: number) => void,
+  hiddenIds: Set<number> = new Set(),
 ): PubTrail => {
+  const stopIds = allStopIds.filter((id) => !hiddenIds.has(id));
   const selected = pubsById.get(selectedId);
   const index = stopIds.indexOf(selectedId);
   const step = (stopIndex: number): TrailStep | null => {
@@ -119,7 +122,7 @@ export const crawlTrail = (
     return {
       pub,
       miles: distanceMiles(selected.lat, selected.lon, pub.lat, pub.lon),
-      stopNumber: stopIndex + 1,
+      stopNumber: allStopIds.indexOf(pub.id) + 1,
     };
   };
 

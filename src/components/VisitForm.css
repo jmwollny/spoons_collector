@@ -32,3 +32,72 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
+
+.visit-form textarea {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.7rem 0.8rem;
+  font: inherit;
+  resize: vertical;
+}
+
+/* Drink and Who with side by side, stacking on narrow screens */
+.visit-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.8rem;
+}
+
+.photo-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.photo-field-label {
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.photo-field-preview {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+
+.photo-field-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* The file input is hidden; its label is the button */
+.photo-field-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.photo-field-choose,
+.visit-form .photo-field-remove {
+  padding: 0.55rem 0.9rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.photo-field-choose:has(+ .photo-field-input:focus-visible) {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.visit-form .photo-field-remove {
+  border: none;
+  background: #fef2f2;
+  color: #b91c1c;
+}

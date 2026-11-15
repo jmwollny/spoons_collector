@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { PubLocation, VisitEntry } from '../types';
+import type { PubLocation, VisitDetails, VisitEntry } from '../types';
+import { deletePhoto } from '../photos';
 import { formatDate } from '../utils';
 import { loadVisits, loadVisitsCopy, reconcileVisits, saveVisitsCopy, storageKey } from '../visits';
 
@@ -75,19 +76,18 @@ export const useVisits = (locations: PubLocation[]) => {
     };
   };
 
-  const addVisit = (pubId: number, date: string, rating: number) =>
-    setVisits((current) => [
-      { id: `${pubId}-${Date.now()}`, locationId: pubId, date, rating },
-      ...current,
-    ]);
+  const addVisit = (visit: VisitEntry) => setVisits((current) => [visit, ...current]);
 
-  const updateVisit = (visitId: string, date: string, rating: number) =>
+  const updateVisit = (visitId: string, details: VisitDetails) =>
     setVisits((current) =>
-      current.map((visit) => (visit.id === visitId ? { ...visit, date, rating } : visit)),
+      current.map((visit) => (visit.id === visitId ? { ...visit, ...details } : visit)),
     );
 
-  const deleteVisit = (visitId: string) =>
+  /** Deletes a visit, and its photo */
+  const deleteVisit = (visitId: string) => {
     setVisits((current) => current.filter((visit) => visit.id !== visitId));
+    void deletePhoto(visitId);
+  };
 
   return {
     visits,

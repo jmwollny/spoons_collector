@@ -71,6 +71,21 @@ A pub's rarity comes from the distance to its **second**-nearest other Wetherspo
 
 Flip a card to see both distances.
 
+### Visits
+
+Each visit records the date and a rating, and optionally what you drank, who you were with, notes and a photo. On a phone, adding a photo offers the camera or the gallery. Photos are shrunk to about 1,280 pixels and kept on the device: as files in the Android app's own folder, or in IndexedDB in a browser. Backups include everything except photos, which would make them very large.
+
+**Your stats** shows visits per month, your best year, weekly streaks, your favourite and most remote pubs, and the visit furthest from your usual patch. **Year in Spoons** sums up a year as a card you can share as an image.
+
+### Crawls
+
+**Plan a crawl** picks 2 to 10 pubs (new to you, the rarest within reach, or any), starting from a pub, your location or a town, and puts them in the shortest order. Each stop gets an arrival time and a meal (from Wetherspoon's usual food times).
+
+- **Scores:** each pub ticked off scores by rarity (10 for Common up to 100 for Legendary), doubled if it's new to you, plus 10 for a breakfast, lunch or dinner stop. Finished crawls count towards the crawl achievements (Crawler, Full English, Marathon, Treasure Hunter, High Scorer).
+- **Treasure hunt:** the pub names are hidden. Each stop shows a clue from its history with its name and town blanked out. Found stops score half as much again; **Reveal** gives up and shows the pub.
+- **Sharing:** **Share** sends friends a code (`SC1.…`) and a `spoonscollector://crawl/…` link that opens the Android app. They join it from **Plan a crawl → Join a friend's crawl**, or `?crawl=…` on the web.
+- **Follow the streets:** distances and times along real streets come from the [FOSSGIS routing service](https://routing.openstreetmap.de/) (the one openstreetmap.org's directions use). Only the pubs' locations are sent, never yours: the leg from your location to the first pub stays a straight line. Untick it to stay offline.
+
 ### Regions
 
 Each pub is assigned a region from the first half of its postcode, using a lookup built from the ONS Postcode Directory (`assets/postcode_regions.json`). There are 12 regions: North East, North West, Yorkshire and the Humber, East Midlands, West Midlands, East of England, London, South East, South West, Wales, Scotland and Northern Ireland.

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { VisitEntry } from './types';
 import type { Crawl } from './crawl';
 import { exportBackup } from './backup';
+import type { CompletedCrawl } from './crawlScore';
 
 // When this device last made a backup, and a fingerprint of the visits it
 // held, so the reminder knows whether anything has changed since. Only for
@@ -87,7 +88,12 @@ const write = (key: string, value: string) => {
  * Making backups, and whether to remind the user to. Shared by the backup
  * panel and the reminder banner.
  */
-export const useBackup = (visits: VisitEntry[], crawl: Crawl | null, today: string) => {
+export const useBackup = (
+  visits: VisitEntry[],
+  crawl: Crawl | null,
+  today: string,
+  crawlHistory: CompletedCrawl[] = [],
+) => {
   const [record, setRecord] = useState<BackupRecord>(() => ({
     date: read(lastBackupKey),
     signature: read(lastBackupSignatureKey),
@@ -96,7 +102,7 @@ export const useBackup = (visits: VisitEntry[], crawl: Crawl | null, today: stri
 
   /** @returns false if the user closed the share sheet without saving */
   const backUp = async () => {
-    const saved = await exportBackup(visits, crawl, today);
+    const saved = await exportBackup(visits, crawl, today, crawlHistory);
     if (saved) {
       const signature = visitsSignature(visits);
       write(lastBackupKey, today);

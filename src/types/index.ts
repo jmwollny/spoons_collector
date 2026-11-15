@@ -28,5 +28,15 @@ export type VisitEntry = {
   // The pub's Wetherspoon id
   locationId: number;
   date: string;
+  // -1 for none, 0 to 2 for one to three stars
   rating: number;
+  // What the user drank, who they were with, anything else
+  drink?: string;
+  company?: string;
+  notes?: string;
+  // Whether a photo is saved for this visit, on this device (see photos.ts)
+  hasPhoto?: boolean;
 };
+
+/** The parts of a visit the user fills in */
+export type VisitDetails = Omit<VisitEntry, 'id' | 'locationId'>;

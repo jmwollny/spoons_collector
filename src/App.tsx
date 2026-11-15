@@ -2,8 +2,10 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import './App.css';
 import type { VisitEntry } from './types';
 import type { PubData } from './data';
-import { distanceMiles, formatDate, todayDate } from './utils';
-import { sanitiseCrawl } from './crawl';
+import { distanceMiles, formatDate, plural, todayDate } from './utils';
+import { sanitiseCrawl, type Crawl } from './crawl';
+import { decodeCrawl } from './crawlShare';
+import { useIncomingCrawl } from './hooks/useIncomingCrawl';
 import { unlockedTitles } from './achievements';
 import { useBackup } from './backupReminder';
 import { useVisits } from './hooks/useVisits';
@@ -62,20 +64,15 @@ function App({ data }: { data: PubData }) {
   };
 
   // ---- Crawls ----
-  const unlockedNow = useMemo(
-    () => unlockedTitles(locations, visitedLocationIds, indexedVisits),
-    [locations, visitedLocationIds, indexedVisits],
-  );
   const crawl = useCrawlSession({
     locations,
     pubsById,
     indexedVisits,
-    unlockedNow,
     // Crawl mode hides the list, so clear its search and filters, which
     // would otherwise hide pubs on the map with no visible reason
     onEnterCrawl: (pubId, how) => {
       filters.clearFilters();
-      select(pubId);
+      if (pubId !== null) select(pubId);
       if (how === 'started') {
         scrollToMap();
       } else {
@@ -83,6 +80,28 @@ function App({ data }: { data: PubData }) {
       }
     },
   });
+
+  // Achievements unlocked, counting a crawl that's just been completed
+  const { historyWithCurrent } = crawl;
+  const unlockedNow = useMemo(
+    () => unlockedTitles(locations, visitedLocationIds, indexedVisits, historyWithCurrent),
+    [locations, visitedLocationIds, indexedVisits, historyWithCurrent],
+  );
+  const startCrawl = (planned: Crawl) =>
+    crawl.start(planned, unlockedTitles(locations, visitedLocationIds, indexedVisits, crawl.history));
+
+  // A crawl shared by a friend, arriving through a link
+  const incoming = useIncomingCrawl();
+  const incomingCrawl = useMemo(() => {
+    if (!incoming.code) return null;
+    try {
+      return { crawl: { ...decodeCrawl(incoming.code, locations, visitedLocationIds), followStreets: true }, error: null };
+    } catch (error) {
+      return { crawl: null, error: error instanceof Error ? error.message : String(error) };
+    }
+    // Decoded once per code
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming.code]);
 
   // ---- Finding the user ----
   const nearMe = useNearMe(locations, visitedLocationIds, (_position, nearestPubId) => {
@@ -111,7 +130,7 @@ function App({ data }: { data: PubData }) {
   // ---- Previous and Next ----
   const trail = useActiveTrail(selectedId, filters.filteredLocations, pubsById, crawl, selectAnyPub);
 
-  const backup = useBackup(visits, crawl.crawl, today);
+  const backup = useBackup(visits, crawl.crawl, today, crawl.history);
 
   // ---- Actions ----
   const openCard = (pubId: number) => {
@@ -224,8 +243,37 @@ function App({ data }: { data: PubData }) {
               selectedPub={selectedPub}
               today={today}
               hasCrawl={crawl.crawl !== null}
-              onPlan={crawl.start}
+              onPlan={startCrawl}
               onClose={crawl.closePlanner}
+            />
+          )}
+
+          {incomingCrawl?.crawl && (
+            <ConfirmDialog
+              title={incomingCrawl.crawl.treasureHunt ? 'Join this treasure hunt?' : 'Join this crawl?'}
+              message={
+                <>
+                  {plural(incomingCrawl.crawl.stops.length, 'pub')} from {incomingCrawl.crawl.startLabel} on{' '}
+                  {formatDate(incomingCrawl.crawl.date)}.
+                  {crawl.crawl && ' It replaces the crawl you have under way.'}
+                </>
+              }
+              confirmLabel="Join crawl"
+              onConfirm={() => {
+                startCrawl(incomingCrawl.crawl);
+                incoming.clear();
+              }}
+              onCancel={incoming.clear}
+            />
+          )}
+
+          {incomingCrawl?.error && (
+            <ConfirmDialog
+              title="Couldn't open that crawl"
+              message={incomingCrawl.error}
+              confirmLabel="OK"
+              onConfirm={incoming.clear}
+              onCancel={incoming.clear}
             />
           )}
 
@@ -326,6 +374,9 @@ function App({ data }: { data: PubData }) {
                 crawl={crawl.crawl}
                 pubsById={pubsById}
                 indexedVisits={indexedVisits}
+                hiddenIds={crawl.hiddenIds}
+                streetRouteStatus={crawl.streetRouteStatus}
+                onReveal={crawl.reveal}
                 onSelectPub={(pubId) => {
                   selectAnyPub(pubId);
                   scrollToMap();
@@ -336,7 +387,7 @@ function App({ data }: { data: PubData }) {
                   scrollToMap();
                 }}
                 onEnd={crawl.requestEnd}
-                onFinish={crawl.end}
+                onFinish={crawl.finish}
                 isFocused={isCrawlMode}
                 onBrowse={crawl.browse}
                 onBackToCrawl={crawl.backToCrawl}
@@ -376,6 +427,8 @@ function App({ data }: { data: PubData }) {
       {!isCrawlMode && (
         <ProgressSection
           locations={locations}
+          pubsById={pubsById}
+          today={today}
           visits={visits}
           visitedLocationIds={visitedLocationIds}
           indexedVisits={indexedVisits}
@@ -384,6 +437,8 @@ function App({ data }: { data: PubData }) {
           prepareCrawl={(value) => sanitiseCrawl(value, locations)}
           onCrawlRestore={crawl.restore}
           backup={backup}
+          crawlHistory={crawl.history}
+          onCrawlHistoryRestore={crawl.restoreHistory}
         />
       )}
     </div>

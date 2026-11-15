@@ -27,6 +27,8 @@ export const RestoreConfirmDialog = ({
         {restore.crawl &&
           ` It also has a crawl of ${plural(restore.crawl.stops.length, 'pub')} from ${restore.crawl.startLabel}, which will be restored too.`}
         {restore.crawlSkipped && " Its crawl isn't restored, as you have one under way."}
+        {restore.newCrawlHistory.length > 0 &&
+          ` It also has ${plural(restore.newCrawlHistory.length, 'finished crawl')}, for your achievements.`}
       </>
     }
     confirmLabel="Restore"

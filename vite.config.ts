@@ -28,6 +28,20 @@ const preloadPubData = (): Plugin => ({
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), preloadPubData()],
+  build: {
+    rolldownOptions: {
+      output: {
+        // The big libraries in files of their own, so the app's own code
+        // stays small and the libraries stay cached when only the app changes
+        codeSplitting: {
+          groups: [
+            { name: 'leaflet', test: /node_modules[\\/](leaflet|react-leaflet|@react-leaflet|leaflet\.markercluster|react-leaflet-cluster)[\\/]/ },
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['src/test/setup.ts'],

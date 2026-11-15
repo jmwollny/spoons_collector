@@ -3,11 +3,13 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import type { VisitEntry } from './types';
 import type { Crawl } from './crawl';
+import { sanitiseCrawlHistory, type CompletedCrawl } from './crawlScore';
 
 // Identifies a backup file made by this app, and its format version.
-// Version 2 added the crawl under way; version 1 files are still read.
+// Version 2 added the crawl under way; version 3, visits' drinks, company
+// and notes, and the crawls finished. Earlier versions are still read.
 const BACKUP_APP = 'spoons_collector';
-const BACKUP_VERSION = 2;
+const BACKUP_VERSION = 3;
 
 type BackupFile = {
   app: typeof BACKUP_APP;
@@ -16,12 +18,15 @@ type BackupFile = {
   visits: VisitEntry[];
   // The crawl under way when the backup was made (version 2 on)
   crawl?: Crawl | null;
+  // Crawls finished (version 3 on)
+  crawlHistory?: CompletedCrawl[];
 };
 
 export type Backup = {
   visits: VisitEntry[];
   // As found in the file: check it with sanitiseCrawl before using it
   crawl: unknown;
+  crawlHistory: CompletedCrawl[];
 };
 
 const isVisitEntry = (value: unknown): value is VisitEntry => {
@@ -37,7 +42,12 @@ const isVisitEntry = (value: unknown): value is VisitEntry => {
     typeof visit.rating === 'number' &&
     Number.isInteger(visit.rating) &&
     visit.rating >= -1 &&
-    visit.rating <= 2
+    visit.rating <= 2 &&
+    // Optional extras, from version 3
+    ['drink', 'company', 'notes'].every(
+      (field) => visit[field] === undefined || typeof visit[field] === 'string',
+    ) &&
+    (visit.hasPhoto === undefined || typeof visit.hasPhoto === 'boolean')
   );
 };
 
@@ -63,7 +73,11 @@ export const parseBackup = (text: string): Backup => {
   if (!backup.visits.every(isVisitEntry)) {
     throw new Error('That backup is damaged: some of its visits are unreadable.');
   }
-  return { visits: backup.visits, crawl: backup.crawl ?? null };
+  return {
+    visits: backup.visits,
+    crawl: backup.crawl ?? null,
+    crawlHistory: sanitiseCrawlHistory(backup.crawlHistory),
+  };
 };
 
 /**
@@ -90,6 +104,7 @@ export const exportBackup = async (
   visits: VisitEntry[],
   crawl: Crawl | null,
   today: string,
+  crawlHistory: CompletedCrawl[] = [],
 ): Promise<boolean> => {
   const backup: BackupFile = {
     app: BACKUP_APP,
@@ -97,6 +112,7 @@ export const exportBackup = async (
     exportedAt: new Date().toISOString(),
     visits,
     crawl,
+    crawlHistory,
   };
   const text = JSON.stringify(backup, null, 2);
   const fileName = backupFileName(today);

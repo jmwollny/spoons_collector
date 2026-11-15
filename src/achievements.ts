@@ -1,4 +1,5 @@
 import type { PubLocation, VisitEntry } from './types';
+import { crawlAchievements, type CompletedCrawl } from './crawlScore';
 
 export type Achievement = {
   title: string;
@@ -13,6 +14,8 @@ export const getAchievements = (
   locations: PubLocation[],
   visitedLocationIds: Set<number>,
   indexedVisits: Record<number, VisitEntry[]>,
+  // Crawls finished, for the crawl achievements
+  crawls: CompletedCrawl[] = [],
 ): Achievement[] => {
   const visited = locations.filter((location) => visitedLocationIds.has(location.id));
   const regions = new Set(locations.map((location) => location.region));
@@ -54,6 +57,7 @@ export const getAchievements = (
       progress: count,
       target: locations.length,
     },
+    ...crawlAchievements(crawls),
   ];
 };
 
@@ -65,7 +69,8 @@ export const unlockedTitles = (
   locations: PubLocation[],
   visitedLocationIds: Set<number>,
   indexedVisits: Record<number, VisitEntry[]>,
+  crawls: CompletedCrawl[] = [],
 ) =>
-  getAchievements(locations, visitedLocationIds, indexedVisits)
+  getAchievements(locations, visitedLocationIds, indexedVisits, crawls)
     .filter(isUnlocked)
     .map((achievement) => achievement.title);

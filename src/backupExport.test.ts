@@ -38,7 +38,7 @@ describe('exportBackup in a browser', () => {
     await expect(exportBackup(visits, makeCrawl(), '2026-11-15')).resolves.toBe(true);
     expect(saved?.name).toBe('spoons-collector-backup-2026-11-15.json');
     const contents = JSON.parse(await saved!.text);
-    expect(contents).toMatchObject({ app: 'spoons_collector', version: 2, visits, crawl: { id: 'crawl-1' } });
+    expect(contents).toMatchObject({ app: 'spoons_collector', version: 3, visits, crawl: { id: 'crawl-1' }, crawlHistory: [] });
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:backup');
   });
 });

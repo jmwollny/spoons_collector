@@ -6,7 +6,11 @@ import { fitPadding, getCrawlIcon } from './mapIcons';
 export type CrawlRoute = {
   // Where the crawl starts, when that isn't its first pub
   start: { lat: number; lon: number; label: string } | null;
-  stops: Array<{ pubId: number; lat: number; lon: number; name: string; done: boolean }>;
+  // The stops shown (hidden treasure-hunt stops are left out), numbered by
+  // their place on the crawl
+  stops: Array<{ pubId: number; number: number; lat: number; lon: number; name: string; done: boolean }>;
+  // The route along real streets between the stops, once fetched
+  streetPath?: Array<[number, number]> | null;
 };
 
 type CrawlRouteLayerProps = {
@@ -16,13 +20,27 @@ type CrawlRouteLayerProps = {
   onSelect: (pubId: number) => void;
 };
 
-/** The crawl's route: a dashed line through numbered stops */
+/**
+ * The crawl's route through numbered stops: along the streets once fetched
+ * (dashed only for the leg from a start that isn't a pub), otherwise a
+ * dashed straight line
+ */
 export const CrawlRouteLayer = ({ route, fitKey, onSelect }: CrawlRouteLayerProps) => {
   const map = useMap();
   const points: Array<[number, number]> = [
     ...(route.start ? [[route.start.lat, route.start.lon] as [number, number]] : []),
     ...route.stops.map((stop) => [stop.lat, stop.lon] as [number, number]),
   ];
+
+  const firstStop = route.stops[0];
+  const lines: Array<{ positions: Array<[number, number]>; dashed: boolean }> = route.streetPath
+    ? [
+        ...(route.start && firstStop
+          ? [{ positions: [[route.start.lat, route.start.lon], [firstStop.lat, firstStop.lon]] as Array<[number, number]>, dashed: true }]
+          : []),
+        { positions: route.streetPath, dashed: false },
+      ]
+    : [{ positions: points, dashed: true }];
 
   // Zoom to the whole route when asked: on planning it, or Show route
   useEffect(() => {
@@ -35,11 +53,14 @@ export const CrawlRouteLayer = ({ route, fitKey, onSelect }: CrawlRouteLayerProp
 
   return (
     <>
-      <Polyline
-        positions={points}
-        pathOptions={{ color: '#db2777', weight: 4, opacity: 0.8, dashArray: '8 8' }}
-        interactive={false}
-      />
+      {lines.map((line, index) => (
+        <Polyline
+          key={index}
+          positions={line.positions}
+          pathOptions={{ color: '#db2777', weight: 4, opacity: 0.8, dashArray: line.dashed ? '8 8' : undefined }}
+          interactive={false}
+        />
+      ))}
       {route.start && (
         <Marker
           position={[route.start.lat, route.start.lon]}
@@ -48,13 +69,13 @@ export const CrawlRouteLayer = ({ route, fitKey, onSelect }: CrawlRouteLayerProp
           title={`Start: ${route.start.label}`}
         />
       )}
-      {route.stops.map((stop, index) => (
+      {route.stops.map((stop) => (
         <Marker
           key={stop.pubId}
           position={[stop.lat, stop.lon]}
-          icon={getCrawlIcon(stop.done ? '✓' : String(index + 1), stop.done ? 'done' : 'stop')}
+          icon={getCrawlIcon(stop.done ? '✓' : String(stop.number), stop.done ? 'done' : 'stop')}
           zIndexOffset={2000}
-          title={`${index + 1}. ${stop.name}`}
+          title={`${stop.number}. ${stop.name}`}
           eventHandlers={{ click: () => onSelect(stop.pubId) }}
         />
       ))}

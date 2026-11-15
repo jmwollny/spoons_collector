@@ -16,7 +16,7 @@ export const useActiveTrail = (
   selectAnyPub: (pubId: number) => void,
 ): PubTrail => {
   const nearby = usePubTrail(selectedId, filteredLocations, pubsById, selectAnyPub);
-  const { crawl, isCrawlMode, doneStopIds } = crawlSession;
+  const { crawl, isCrawlMode, doneStopIds, hiddenIds } = crawlSession;
   const trail =
     isCrawlMode && crawl
       ? crawlTrail(
@@ -25,6 +25,7 @@ export const useActiveTrail = (
           selectedId,
           pubsById,
           selectAnyPub,
+          hiddenIds,
         )
       : nearby;
 

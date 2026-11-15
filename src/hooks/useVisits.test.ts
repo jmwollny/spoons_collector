@@ -1,9 +1,12 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { Preferences } from '@capacitor/preferences';
 import { useVisits } from './useVisits';
 import { makeVisit, samplePubs } from '../test/fixtures';
 import { storageKey } from '../visits';
+import { deletePhoto } from '../photos';
+
+vi.mock('../photos', () => ({ deletePhoto: vi.fn() }));
 
 const copyKey = 'visits-v2';
 
@@ -47,20 +50,22 @@ describe('useVisits', () => {
 
   it('adds, edits and deletes visits, saving them', async () => {
     const { result } = renderHook(() => useVisits(samplePubs));
-    act(() => result.current.addVisit(3, '2026-11-15', 1));
+    act(() => result.current.addVisit(makeVisit(3, '2026-11-15', { id: 'v1', rating: 1 })));
     const added = result.current.visits[0];
     expect(added).toMatchObject({ locationId: 3, date: '2026-11-15', rating: 1 });
-    act(() => result.current.updateVisit(added.id, '2026-11-14', 2));
-    expect(result.current.visits[0]).toMatchObject({ date: '2026-11-14', rating: 2 });
+    act(() => result.current.updateVisit(added.id, { date: '2026-11-14', rating: 2, drink: 'Abbot Ale' }));
+    expect(result.current.visits[0]).toMatchObject({ date: '2026-11-14', rating: 2, drink: 'Abbot Ale' });
     expect(JSON.parse(window.localStorage.getItem(storageKey)!)).toHaveLength(1);
     act(() => result.current.deleteVisit(added.id));
     expect(result.current.visits).toEqual([]);
+    // Its photo goes with it
+    expect(deletePhoto).toHaveBeenCalledWith('v1');
   });
 
   it('keeps a second copy, and restores from it if local storage was cleared', async () => {
     const first = renderHook(() => useVisits(samplePubs));
     await waitFor(async () => expect((await Preferences.get({ key: copyKey })).value).toBe('[]'));
-    act(() => first.result.current.addVisit(2, '2026-11-15', 2));
+    act(() => first.result.current.addVisit(makeVisit(2, '2026-11-15')));
     await waitFor(async () => expect((await Preferences.get({ key: copyKey })).value).toContain('"locationId":2'));
     first.unmount();
 

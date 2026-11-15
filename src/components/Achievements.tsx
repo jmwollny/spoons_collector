@@ -1,22 +1,26 @@
 import React, { useMemo } from 'react';
 import type { PubLocation, VisitEntry } from '../types';
 import { getAchievements, isUnlocked } from '../achievements';
+import type { CompletedCrawl } from '../crawlScore';
 
 interface AchievementsProps {
   locations: PubLocation[];
   visitedLocationIds: Set<number>;
   // Each pub's visits
   indexedVisits: Record<number, VisitEntry[]>;
+  // Crawls finished
+  crawls?: CompletedCrawl[];
 }
 
 export const Achievements: React.FC<AchievementsProps> = ({
   locations,
   visitedLocationIds,
   indexedVisits,
+  crawls = [],
 }) => {
   const achievementsList = useMemo(
-    () => getAchievements(locations, visitedLocationIds, indexedVisits),
-    [locations, visitedLocationIds, indexedVisits],
+    () => getAchievements(locations, visitedLocationIds, indexedVisits, crawls),
+    [locations, visitedLocationIds, indexedVisits, crawls],
   );
 
   return (

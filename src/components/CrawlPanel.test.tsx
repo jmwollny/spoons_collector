@@ -1,21 +1,29 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CrawlPanel } from './CrawlPanel';
 import { makeCrawl, makeVisit, samplePubsById } from '../test/fixtures';
 import type { Crawl } from '../crawl';
 import type { VisitEntry } from '../types';
+import type { StreetRouteStatus } from '../hooks/useCrawlSession';
+import { shareText } from '../files';
+
+vi.mock('../files', () => ({ shareText: vi.fn() }));
 
 const renderPanel = ({
   crawl = makeCrawl(),
   indexedVisits = {},
   isFocused = true,
   unlockedNow = [],
+  hiddenIds = new Set<number>(),
+  streetRouteStatus = 'none',
 }: {
   crawl?: Crawl;
   indexedVisits?: Record<number, VisitEntry[]>;
   isFocused?: boolean;
   unlockedNow?: string[];
+  hiddenIds?: Set<number>;
+  streetRouteStatus?: StreetRouteStatus;
 } = {}) => {
   const handlers = {
     onSelectPub: vi.fn(),
@@ -25,6 +33,7 @@ const renderPanel = ({
     onFinish: vi.fn(),
     onBrowse: vi.fn(),
     onBackToCrawl: vi.fn(),
+    onReveal: vi.fn(),
   };
   render(
     <CrawlPanel
@@ -33,6 +42,8 @@ const renderPanel = ({
       indexedVisits={indexedVisits}
       isFocused={isFocused}
       unlockedNow={unlockedNow}
+      hiddenIds={hiddenIds}
+      streetRouteStatus={streetRouteStatus}
       {...handlers}
     />,
   );
@@ -61,7 +72,7 @@ describe('CrawlPanel', () => {
   it('lists the stops in order, with arrival times and meals', () => {
     renderPanel();
     expect(stops()).toHaveLength(2);
-    expect(stops()[0]).toHaveTextContent('1The Cuthbert BrodrickLeeds · Common · newStart here · arrive ~10:00Breakfast');
+    expect(stops()[0]).toHaveTextContent('1The Cuthbert BrodrickLeeds · Common · newStart here · arrive ~10:00Breakfast30 pts');
     expect(stops()[1]).toHaveTextContent('0.1 mi from last stop · arrive ~11:05');
   });
 
@@ -141,7 +152,7 @@ describe('CrawlPanel', () => {
         unlockedNow: ['First Pint', 'Regular'],
       });
       const summary = screen.getByRole('status');
-      expect(summary).toHaveTextContent('🎉 Crawl complete!');
+      expect(summary).toHaveTextContent('🎉 Crawl complete! 70 points');
       expect(summary).toHaveTextContent('Pubs2Distance0.1 miNew to you2');
       expect(summary).toHaveTextContent('🏅 Unlocked: Regular');
       expect(screen.queryByRole('button', { name: 'End' })).not.toBeInTheDocument();
@@ -153,5 +164,72 @@ describe('CrawlPanel', () => {
       renderPanel({ indexedVisits: allVisited, unlockedNow: ['First Pint'] });
       expect(screen.getByRole('status')).not.toHaveTextContent('Unlocked');
     });
+  });
+
+  describe('scores', () => {
+    it('shows the score so far, and points for each stop', () => {
+      renderPanel({ indexedVisits: { 1: [makeVisit(1, '2026-11-15')] } });
+      expect(screen.getByText('Score: 30')).toBeInTheDocument();
+      expect(within(stops()[0]).getByText('30 pts')).toHaveClass('is-earned');
+      expect(within(stops()[1]).getByText('40 pts')).not.toHaveClass('is-earned');
+    });
+  });
+
+  describe('treasure hunts', () => {
+    const hunt = makeCrawl({ treasureHunt: true });
+
+    it('hides stops not yet found behind a clue', () => {
+      renderPanel({ crawl: hunt, hiddenIds: new Set([2]) });
+      expect(screen.getByRole('heading', { name: 'Your Spoons treasure hunt' })).toBeInTheDocument();
+      const hidden = stops()[1];
+      expect(hidden).toHaveClass('is-hidden');
+      expect(within(hidden).getByText('Mystery stop')).toBeInTheDocument();
+      expect(hidden).not.toHaveTextContent('Hedley Verity');
+      expect(hidden.querySelector('q')).toHaveTextContent('A uncommon Wetherspoon in Yorkshire and The Humber.');
+      expect(within(hidden).getByRole('button', { name: "I'm here" })).toBeInTheDocument();
+      // A hidden stop can't be shown on the map
+      expect(within(hidden).queryByRole('button', { name: /Hedley/ })).not.toBeInTheDocument();
+      expect(screen.getByText(/Found stops score half as much again/)).toBeInTheDocument();
+    });
+
+    it('reveals a stop, or checks in on arriving', async () => {
+      const handlers = renderPanel({ crawl: hunt, hiddenIds: new Set([2]) });
+      await userEvent.click(within(stops()[1]).getByRole('button', { name: 'Reveal' }));
+      expect(handlers.onReveal).toHaveBeenCalledWith(2);
+      await userEvent.click(within(stops()[1]).getByRole('button', { name: "I'm here" }));
+      expect(handlers.onCheckIn).toHaveBeenCalledWith(2);
+    });
+  });
+
+  describe('sharing', () => {
+    it('shares an invitation with the crawl code', async () => {
+      vi.mocked(shareText).mockResolvedValue('shared');
+      renderPanel();
+      await userEvent.click(screen.getByRole('button', { name: 'Share' }));
+      expect(shareText).toHaveBeenCalledWith(expect.stringMatching(/Join my Spoons crawl.*\n.*SC1\./s), 'Join my Spoons crawl');
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('says when the invitation was copied instead, or failed', async () => {
+      vi.mocked(shareText).mockResolvedValueOnce('copied').mockRejectedValueOnce(new Error('No clipboard'));
+      renderPanel();
+      await userEvent.click(screen.getByRole('button', { name: 'Share' }));
+      expect(await screen.findByRole('status')).toHaveTextContent('Copied the invitation');
+      await userEvent.click(screen.getByRole('button', { name: 'Share' }));
+      expect(await screen.findByRole('status')).toHaveTextContent("Couldn't share: No clipboard");
+    });
+  });
+
+  it('says whether distances follow the streets', () => {
+    for (const [status, text] of [
+      ['none', 'as the crow flies'],
+      ['loading', 'Finding the route along the streets'],
+      ['done', 'follow the streets'],
+      ['failed', "Couldn't get the route along the streets"],
+    ] as const) {
+      renderPanel({ streetRouteStatus: status });
+      expect(screen.getByText(new RegExp(text))).toBeInTheDocument();
+      cleanup();
+    }
   });
 });

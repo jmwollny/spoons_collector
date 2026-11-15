@@ -5,7 +5,7 @@ import { BackupPanel } from './BackupPanel';
 import { BackupReminder } from './BackupReminder';
 import { ProgressSection } from './ProgressSection';
 import type { BackupControls } from '../backupReminder';
-import { makeCrawl, makeVisit, samplePubs } from '../test/fixtures';
+import { makeCrawl, makeVisit, samplePubs, samplePubsById } from '../test/fixtures';
 import type { Crawl } from '../crawl';
 
 const visits = [makeVisit(1, '2026-11-01'), makeVisit(2, '2026-11-02')];
@@ -168,6 +168,27 @@ describe('BackupPanel', () => {
   });
 });
 
+describe('BackupPanel and finished crawls', () => {
+  const done = { id: 'c1', date: '2026-11-01', pubCount: 3, totalMiles: 1, mode: 'walk', score: 90, meals: [], treasureHunt: false, revealedCount: 0 };
+
+  it('restores finished crawls not here yet', async () => {
+    const onCrawlHistoryRestore = vi.fn();
+    renderPanel({ onCrawlHistoryRestore, crawlHistory: [] });
+    await restoreFrom(backupFile({ app: 'spoons_collector', version: 3, visits, crawlHistory: [done] }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('It also has 1 finished crawl, for your achievements.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Restore' }));
+    expect(onCrawlHistoryRestore).toHaveBeenCalledWith([done]);
+    expect(screen.getByRole('status')).toHaveTextContent('Restored 0 visits and 1 finished crawl.');
+  });
+
+  it('has nothing to restore when it already has them', async () => {
+    renderPanel({ crawlHistory: [done as never] });
+    await restoreFrom(backupFile({ app: 'spoons_collector', version: 3, visits, crawlHistory: [done] }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Nothing to restore');
+  });
+});
+
 describe('BackupReminder', () => {
   it('nudges a user who has never backed up', () => {
     render(<BackupReminder backup={controls()} visitCount={5} today="2026-11-15" />);
@@ -213,6 +234,8 @@ describe('ProgressSection', () => {
     render(
       <ProgressSection
         locations={samplePubs}
+        pubsById={samplePubsById}
+        today="2026-11-15"
         visits={visits}
         visitedLocationIds={new Set([1, 2])}
         indexedVisits={{ 1: [visits[0]], 2: [visits[1]] }}
@@ -223,7 +246,7 @@ describe('ProgressSection', () => {
         backup={controls()}
       />,
     );
-    for (const heading of ['Achievements', 'Rarity', 'Regions', 'Your visits']) {
+    for (const heading of ['Your stats', 'Achievements', 'Rarity', 'Regions', 'Your visits']) {
       expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
     }
   });

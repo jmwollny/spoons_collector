@@ -45,8 +45,8 @@ describe('PubMarkers', () => {
 const route: CrawlRoute = {
   start: { lat: 53.8, lon: -1.55, label: 'Leeds' },
   stops: [
-    { pubId: 1, lat: 53.801, lon: -1.547, name: 'The Cuthbert Brodrick', done: true },
-    { pubId: 2, lat: 53.802, lon: -1.546, name: 'The Hedley Verity', done: false },
+    { pubId: 1, number: 1, lat: 53.801, lon: -1.547, name: 'The Cuthbert Brodrick', done: true },
+    { pubId: 2, number: 2, lat: 53.802, lon: -1.546, name: 'The Hedley Verity', done: false },
   ],
 };
 
@@ -61,6 +61,28 @@ describe('CrawlRouteLayer', () => {
     expect(screen.getByRole('button', { name: 'Start: Leeds' }).dataset.icon).toContain('🏁');
     expect(screen.getByRole('button', { name: '1. The Cuthbert Brodrick' }).dataset.icon).toContain('is-done');
     expect(screen.getByRole('button', { name: '2. The Hedley Verity' }).dataset.icon).toContain('>2<');
+  });
+
+  it('follows the streets once the route is in, dashing only the leg from the start', () => {
+    const streetPath: Array<[number, number]> = [
+      [53.801, -1.547],
+      [53.8015, -1.5465],
+      [53.802, -1.546],
+    ];
+    render(<CrawlRouteLayer route={{ ...route, streetPath }} fitKey={0} onSelect={vi.fn()} />);
+    const lines = screen.getAllByTestId('line').map((line) => JSON.parse(line.dataset.positions!));
+    expect(lines).toEqual([
+      [
+        [53.8, -1.55],
+        [53.801, -1.547],
+      ],
+      streetPath,
+    ]);
+  });
+
+  it('numbers stops by their place on the crawl, even with some hidden', () => {
+    render(<CrawlRouteLayer route={{ start: null, stops: [{ ...route.stops[1], number: 3 }] }} fitKey={0} onSelect={vi.fn()} />);
+    expect(screen.getByRole('button', { name: '3. The Hedley Verity' }).dataset.icon).toContain('>3<');
   });
 
   it('starting at a pub, has no separate start marker', () => {

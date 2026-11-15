@@ -2,6 +2,7 @@ import { useRef } from 'react';
 import type { VisitEntry } from '../types';
 import type { BackupControls } from '../backupReminder';
 import type { Crawl } from '../crawl';
+import type { CompletedCrawl } from '../crawlScore';
 import { useBackupRestore } from '../hooks/useBackupRestore';
 import { formatDate } from '../utils';
 import { ActionButton } from './ActionButton';
@@ -16,6 +17,8 @@ type BackupPanelProps = {
   prepareCrawl: (value: unknown) => Crawl | null;
   onCrawlRestore: (crawl: Crawl) => void;
   backup: BackupControls;
+  crawlHistory?: CompletedCrawl[];
+  onCrawlHistoryRestore?: (crawls: CompletedCrawl[]) => void;
 };
 
 /**

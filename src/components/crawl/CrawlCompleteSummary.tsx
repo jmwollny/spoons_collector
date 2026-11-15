@@ -4,6 +4,7 @@ type CrawlCompleteSummaryProps = {
   pubCount: number;
   totalMiles: number;
   newCount: number;
+  score: number;
   // Achievements the crawl unlocked
   newAchievements: string[];
   onFinish: () => void;
@@ -14,11 +15,12 @@ export const CrawlCompleteSummary = ({
   pubCount,
   totalMiles,
   newCount,
+  score,
   newAchievements,
   onFinish,
 }: CrawlCompleteSummaryProps) => (
   <div className="crawl-complete" role="status">
-    <p className="crawl-complete-title">🎉 Crawl complete!</p>
+    <p className="crawl-complete-title">🎉 Crawl complete! {score} points</p>
     <dl className="crawl-complete-stats">
       <div>
         <dt>Pubs</dt>

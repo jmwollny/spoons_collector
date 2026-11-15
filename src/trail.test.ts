@@ -95,4 +95,11 @@ describe('crawlTrail', () => {
     trail.goNext();
     expect(select).toHaveBeenCalledWith(1);
   });
+
+  it('skips hidden treasure-hunt stops, keeping stop numbers', () => {
+    const trail = crawlTrail(stops, new Set(), 3, byId, select, new Set([1]));
+    expect(trail.next?.pub.id).toBe(5);
+    expect(trail.next?.stopNumber).toBe(3);
+    expect(crawlTrail(stops, new Set(), 5, byId, select, new Set([1])).previous?.pub.id).toBe(3);
+  });
 });

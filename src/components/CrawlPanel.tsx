@@ -1,5 +1,10 @@
+import { useState } from 'react';
 import type { PubLocation, VisitEntry } from '../types';
 import { formatArrival, formatDuration, formatTime, summariseCrawl, type Crawl } from '../crawl';
+import { crawlScore, stopPoints } from '../crawlScore';
+import { crawlShareText } from '../crawlShare';
+import { shareText } from '../files';
+import type { StreetRouteStatus } from '../hooks/useCrawlSession';
 import { formatDate, formatMiles } from '../utils';
 import { CrawlStopRow } from './crawl/CrawlStopRow';
 import { CrawlCompleteSummary } from './crawl/CrawlCompleteSummary';
@@ -9,8 +14,13 @@ type CrawlPanelProps = {
   crawl: Crawl;
   pubsById: Map<number, PubLocation>;
   indexedVisits: Record<number, VisitEntry[]>;
+  // On a treasure hunt, the stops still hidden behind their clues
+  hiddenIds: Set<number>;
+  // Whether the route along the streets is being fetched, or failed
+  streetRouteStatus: StreetRouteStatus;
   onSelectPub: (pubId: number) => void;
   onCheckIn: (pubId: number) => void;
+  onReveal: (pubId: number) => void;
   onShowRoute: () => void;
   // Ends the crawl, asking first
   onEnd: () => void;
@@ -25,13 +35,23 @@ type CrawlPanelProps = {
   unlockedNow: string[];
 };
 
+const ROUTE_NOTES: Record<StreetRouteStatus, string> = {
+  none: 'Distances are as the crow flies; times allow a bit extra for the real route.',
+  loading: 'Finding the route along the streets…',
+  done: 'Distances and times follow the streets (routes from openstreetmap.de, © OpenStreetMap contributors).',
+  failed: "Couldn't get the route along the streets, so distances are as the crow flies.",
+};
+
 /** The crawl under way: its stops in order, ticked off as they're visited */
 export const CrawlPanel = ({
   crawl,
   pubsById,
   indexedVisits,
+  hiddenIds,
+  streetRouteStatus,
   onSelectPub,
   onCheckIn,
+  onReveal,
   onShowRoute,
   onEnd,
   onFinish,
@@ -41,13 +61,25 @@ export const CrawlPanel = ({
   unlockedNow,
 }: CrawlPanelProps) => {
   const summary = summariseCrawl(crawl, indexedVisits, unlockedNow);
+  const score = crawlScore(crawl, summary.doneIds, pubsById);
   const stopCount = crawl.stops.length;
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+
+  const share = async () => {
+    setShareStatus(null);
+    try {
+      const result = await shareText(crawlShareText(crawl), 'Join my Spoons crawl');
+      if (result === 'copied') setShareStatus('Copied the invitation: paste it to your friends.');
+    } catch (error) {
+      setShareStatus(`Couldn't share: ${error instanceof Error ? error.message : error}`);
+    }
+  };
 
   return (
     <section className="crawl-panel" aria-label="Your Spoons crawl">
       <header className="crawl-panel-header">
         <div>
-          <h2>Your Spoons crawl</h2>
+          <h2>{crawl.treasureHunt ? 'Your Spoons treasure hunt' : 'Your Spoons crawl'}</h2>
           <p className="crawl-panel-summary">
             {formatDate(crawl.date)} · from {crawl.startLabel}
           </p>
@@ -57,6 +89,7 @@ export const CrawlPanel = ({
             {formatDuration(summary.durationMinutes)})
             {summary.newCount > 0 && ` · ${summary.newCount} new`}
           </p>
+          <p className="crawl-score">Score: {score}</p>
         </div>
         <div className="crawl-panel-actions">
           {isFocused ? (
@@ -71,6 +104,9 @@ export const CrawlPanel = ({
           <button type="button" className="visit-form-close" onClick={onShowRoute}>
             Show route
           </button>
+          <button type="button" className="visit-form-close" onClick={share}>
+            Share
+          </button>
           {!summary.isComplete && (
             <button type="button" className="visit-form-close" onClick={onEnd}>
               End
@@ -78,6 +114,12 @@ export const CrawlPanel = ({
           )}
         </div>
       </header>
+
+      {shareStatus && (
+        <p className="crawl-share-status" role="status">
+          {shareStatus}
+        </p>
+      )}
 
       <div
         className="crawl-progress"
@@ -101,6 +143,7 @@ export const CrawlPanel = ({
           pubCount={stopCount}
           totalMiles={summary.totalMiles}
           newCount={summary.newCount}
+          score={score}
           newAchievements={summary.newAchievements}
           onFinish={onFinish}
         />
@@ -119,8 +162,11 @@ export const CrawlPanel = ({
                 isStartPub={index === 0 && crawl.startIsPub}
                 isDone={summary.doneIds.has(stop.pubId)}
                 isNext={stop.pubId === summary.nextPubId}
+                isHidden={hiddenIds.has(stop.pubId)}
+                points={stopPoints(crawl, index, pubsById)}
                 onSelect={onSelectPub}
                 onCheckIn={onCheckIn}
+                onReveal={onReveal}
               />
             )
           );
@@ -128,8 +174,8 @@ export const CrawlPanel = ({
       </ol>
 
       <p className="crawl-form-note">
-        Distances are as the crow flies; times allow a bit extra for the real route. Checking in logs
-        a visit.
+        {ROUTE_NOTES[streetRouteStatus]} Checking in logs a visit.
+        {crawl.treasureHunt && ' Found stops score half as much again; revealed ones don’t.'}
         {summary.goesLate && ' Most Wetherspoons close between 11pm and 1am.'}
       </p>
     </section>

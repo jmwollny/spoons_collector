@@ -6,6 +6,7 @@ import { ActionButton } from './ActionButton';
 import { Modal } from './Modal';
 import { CrawlStartChoice, type StartKind } from './crawl/CrawlStartChoice';
 import { CrawlOptionFields, type CrawlOptionValues } from './crawl/CrawlOptionFields';
+import { JoinCrawl } from './crawl/JoinCrawl';
 import './Crawl.css';
 
 type CrawlPlannerProps = {
@@ -44,6 +45,8 @@ export const CrawlPlanner = ({
     mode: 'walk',
     stayMinutes: 60,
     startTime: '10:00',
+    treasureHunt: false,
+    followStreets: true,
   });
   const [planning, setPlanning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +80,8 @@ export const CrawlPlanner = ({
             startTime: toMinutes(options.startTime || '10:00'),
             stayMinutes: options.stayMinutes,
             date: today,
+            treasureHunt: options.treasureHunt,
+            followStreets: options.followStreets,
           },
           locations,
           visitedIds,
@@ -122,6 +127,8 @@ export const CrawlPlanner = ({
         <ActionButton type="submit" disabled={planning}>
           {planning ? 'Planning…' : 'Plan my crawl'}
         </ActionButton>
+
+        <JoinCrawl locations={locations} visitedIds={visitedIds} onJoin={onPlan} />
       </form>
     </Modal>
   );

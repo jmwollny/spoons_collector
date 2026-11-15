@@ -7,6 +7,10 @@ export type CrawlOptionValues = {
   stayMinutes: number;
   // HH:MM
   startTime: string;
+  // Hide the pubs behind clues
+  treasureHunt: boolean;
+  // Measure the route along real streets (from openstreetmap.de)
+  followStreets: boolean;
 };
 
 type CrawlOptionFieldsProps = {
@@ -80,6 +84,28 @@ export const CrawlOptionFields = ({ values, onChange }: CrawlOptionFieldsProps) 
         onChange={(event) => onChange({ startTime: event.target.value })}
         required
       />
+    </label>
+    <label className="crawl-checkbox">
+      <input
+        type="checkbox"
+        checked={values.treasureHunt}
+        onChange={(event) => onChange({ treasureHunt: event.target.checked })}
+      />
+      <span>
+        🗝 Treasure hunt
+        <small>Hide the pub names: follow a clue to each one</small>
+      </span>
+    </label>
+    <label className="crawl-checkbox">
+      <input
+        type="checkbox"
+        checked={values.followStreets}
+        onChange={(event) => onChange({ followStreets: event.target.checked })}
+      />
+      <span>
+        🛣 Follow the streets
+        <small>Real routes from openstreetmap.de. Only the pubs' locations are sent, not yours.</small>
+      </span>
     </label>
   </div>
 );

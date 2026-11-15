@@ -1,8 +1,7 @@
 import type { VisitEntry } from '../types';
-import { formatDate } from '../utils';
 import { ActionButton } from './ActionButton';
-import StarRating from './StarRating';
 import { Modal } from './Modal';
+import { VisitHistoryItem } from './visit/VisitHistoryItem';
 
 type VisitHistoryProps = {
   pubName: string;
@@ -15,40 +14,13 @@ type VisitHistoryProps = {
 };
 
 /** Every visit to one pub, each with its own Edit and Delete */
-export const VisitHistory = ({
-  pubName,
-  visits,
-  onAdd,
-  onEdit,
-  onDelete,
-  onClose,
-}: VisitHistoryProps) => {
-  return (
-    <Modal title={`Visits to ${pubName}`} onClose={onClose} className="visit-history">
-      <ul className="visit-history-list">
-        {visits.map((visit) => (
-          <li key={visit.id}>
-            <div className="visit-history-details">
-              <strong>{formatDate(visit.date)}</strong>
-              <StarRating rating={visit.rating} maxRating={3} disabled={true} size={16} />
-            </div>
-            <div className="visit-history-actions">
-              <button type="button" className="visit-form-close" onClick={() => onEdit(visit)}>
-                Edit
-              </button>
-              <button
-                type="button"
-                className="visit-history-delete"
-                onClick={() => onDelete(visit)}
-              >
-                Delete
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
-
-      <ActionButton onClick={onAdd}>Add another visit</ActionButton>
-    </Modal>
-  );
-};
+export const VisitHistory = ({ pubName, visits, onAdd, onEdit, onDelete, onClose }: VisitHistoryProps) => (
+  <Modal title={`Visits to ${pubName}`} onClose={onClose} className="visit-history">
+    <ul className="visit-history-list">
+      {visits.map((visit) => (
+        <VisitHistoryItem key={visit.id} visit={visit} pubName={pubName} onEdit={onEdit} onDelete={onDelete} />
+      ))}
+    </ul>
+    <ActionButton onClick={onAdd}>Add another visit</ActionButton>
+  </Modal>
+);

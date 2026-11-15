@@ -58,7 +58,7 @@ describe('Map', () => {
     renderMap({
       crawlRoute: {
         start: null,
-        stops: [{ pubId: 1, lat: 53.8, lon: -1.5, name: 'The Cuthbert Brodrick', done: false }],
+        stops: [{ pubId: 1, number: 1, lat: 53.8, lon: -1.5, name: 'The Cuthbert Brodrick', done: false }],
       },
     });
     expect(screen.getByTestId('line')).toBeInTheDocument();

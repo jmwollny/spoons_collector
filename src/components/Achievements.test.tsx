@@ -31,4 +31,13 @@ describe('Achievements', () => {
     expect(within(row('Bronze Pint')).getByText('4/10')).toBeInTheDocument();
     expect(row('Spoons Master')).toHaveClass('unlocked');
   });
+
+  it('includes achievements for finished crawls', () => {
+    const crawl = { id: 'c1', date: '2026-11-01', pubCount: 5, totalMiles: 2, mode: 'walk' as const, score: 220, meals: ['Breakfast' as const, 'Lunch' as const], treasureHunt: false, revealedCount: 0 };
+    render(<Achievements locations={samplePubs} visitedLocationIds={new Set()} indexedVisits={{}} crawls={[crawl]} />);
+    expect(row('Crawler')).toHaveClass('unlocked');
+    expect(row('Marathon')).toHaveClass('unlocked');
+    expect(within(row('Full English')).getByText('2/3')).toBeInTheDocument();
+    expect(within(row('High Scorer')).getByText('220/500')).toBeInTheDocument();
+  });
 });

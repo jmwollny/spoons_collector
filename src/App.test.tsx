@@ -7,6 +7,8 @@ import { samplePubs } from './test/fixtures';
 import { resetFakeMap } from './test/leafletStub';
 import { setMediaQueryMatches, stubLayout } from './test/browser';
 import { getCurrentLocation } from './location';
+import { encodeCrawl } from './crawlShare';
+import { makeCrawl } from './test/fixtures';
 
 vi.mock('react-leaflet', () => import('./test/leafletStub'));
 vi.mock('react-leaflet-cluster', () =>
@@ -15,6 +17,20 @@ vi.mock('react-leaflet-cluster', () =>
 vi.mock('./location', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./location')>()),
   getCurrentLocation: vi.fn(),
+}));
+
+// Photos and street routes, without IndexedDB or the network
+vi.mock('./photos', () => ({
+  savePhoto: vi.fn(async () => {}),
+  deletePhoto: vi.fn(async () => {}),
+  loadPhotoUrl: vi.fn(async () => 'blob:photo'),
+  shrinkPhoto: vi.fn(async (photo: Blob) => photo),
+}));
+vi.mock('./streetRoute', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./streetRoute')>()),
+  fetchStreetRoute: vi.fn(async () => {
+    throw new Error('offline');
+  }),
 }));
 
 // Live location, controlled by the tests
@@ -384,6 +400,128 @@ describe('App', () => {
       await user.click(listCard('The Punch Bowl, York'));
       const viewer = screen.getByRole('dialog', { name: 'The Punch Bowl' });
       expect(within(viewer).getByText('Distance').nextElementSibling).toHaveTextContent('0.1 mi');
+    });
+  });
+
+  describe('notes, photos and stats', () => {
+    it('logs what was drunk, who with, notes and a photo, shown in the visit list', async () => {
+      URL.createObjectURL = vi.fn(() => 'blob:preview');
+      URL.revokeObjectURL = vi.fn();
+      const user = renderApp();
+      await user.click(screen.getByRole('button', { name: 'Add visit' }));
+      await user.type(screen.getByLabelText('Drink'), 'Abbot Ale');
+      await user.type(screen.getByLabelText('Who with'), 'Sam');
+      await user.type(screen.getByLabelText('Notes'), 'Quiz night');
+      await user.upload(screen.getByLabelText(/Add photo/), new File(['jpeg'], 'pub.jpg', { type: 'image/jpeg' }));
+      expect(await screen.findByRole('img', { name: "This visit's photo" })).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Save visit' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+
+      await user.click(screen.getByRole('button', { name: 'Visits (1)' }));
+      const history = screen.getByRole('dialog', { name: 'Visits to The Cuthbert Brodrick' });
+      expect(within(history).getByText('🍺 Abbot Ale · 👥 Sam')).toBeInTheDocument();
+      expect(within(history).getByText('Quiz night')).toBeInTheDocument();
+      expect(await within(history).findByRole('button', { name: 'Photo from 15 Nov 2026' })).toBeInTheDocument();
+      expect(JSON.parse(window.localStorage.getItem('spoons-collector-v2')!)[0]).toMatchObject({
+        drink: 'Abbot Ale',
+        company: 'Sam',
+        notes: 'Quiz night',
+        hasPhoto: true,
+      });
+    });
+
+    it('shows stats once there are visits, and the Year in Spoons', async () => {
+      const user = renderApp();
+      expect(screen.getByText('Log a visit to see your stats.')).toBeInTheDocument();
+      await addVisit(user, 3);
+      const stats = screen.getByRole('heading', { name: 'Your stats' }).closest('.card') as HTMLElement;
+      expect(within(stats).getByText('Visits', { selector: 'dt' }).nextElementSibling).toHaveTextContent('1');
+      await user.click(within(stats).getByRole('button', { name: '🎉 Year in Spoons' }));
+      expect(screen.getByRole('article', { name: 'My 2026 in Spoons' })).toBeInTheDocument();
+    });
+  });
+
+  describe('crawl extras', () => {
+    const planWith = async (user: ReturnType<typeof userEvent.setup>, option?: RegExp) => {
+      await user.click(screen.getByRole('button', { name: /Plan a crawl/ }));
+      const planner = screen.getByRole('dialog', { name: 'Plan a Spoons crawl' });
+      await user.selectOptions(within(planner).getByRole('combobox', { name: 'Pubs' }), '2');
+      if (option) await user.click(within(planner).getByRole('checkbox', { name: option }));
+      await user.click(within(planner).getByRole('button', { name: 'Plan my crawl' }));
+    };
+
+    it('plays a treasure hunt: clues, revealing, and scoring', async () => {
+      const user = renderApp();
+      await planWith(user, /Treasure hunt/);
+      const panel = screen.getByRole('region', { name: 'Your Spoons crawl' });
+      expect(within(panel).getByRole('heading', { name: 'Your Spoons treasure hunt' })).toBeInTheDocument();
+      // The first stop is the pub the crawl starts at; the second is a mystery
+      expect(within(panel).getByText('Mystery stop')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '2. The Hedley Verity' })).not.toBeInTheDocument();
+      await user.click(within(panel).getByRole('button', { name: 'Reveal' }));
+      expect(within(panel).getByText('The Hedley Verity')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '2. The Hedley Verity' })).toBeInTheDocument();
+    });
+
+    it("starting a hunt from a town doesn't give the first stop away", async () => {
+      const user = renderApp();
+      // Select Glasgow, then hunt in Leeds
+      await user.click(listCard('The Counting House, Glasgow'));
+      await user.keyboard('{Escape}');
+      await user.click(screen.getByRole('button', { name: /Plan a crawl/ }));
+      const planner = screen.getByRole('dialog', { name: 'Plan a Spoons crawl' });
+      await user.click(within(planner).getByRole('radio', { name: 'A town' }));
+      const town = within(planner).getByRole('combobox', { name: 'Town' });
+      await user.clear(town);
+      await user.type(town, 'Leeds');
+      await user.selectOptions(within(planner).getByRole('combobox', { name: 'Pubs' }), '2');
+      await user.click(within(planner).getByRole('checkbox', { name: /Treasure hunt/ }));
+      await user.click(within(planner).getByRole('button', { name: 'Plan my crawl' }));
+      expect(screen.getAllByText('Mystery stop')).toHaveLength(2);
+      expect(summary()).toHaveTextContent('The Counting House');
+      expect(summary()).not.toHaveTextContent(/Cuthbert|Hedley/);
+    });
+
+    it('scores a crawl and counts it towards achievements once finished', async () => {
+      const user = renderApp();
+      // Not following the streets, so no routing is attempted
+      await planWith(user, /Follow the streets/);
+      const panel = screen.getByRole('region', { name: 'Your Spoons crawl' });
+      for (let stop = 0; stop < 2; stop++) {
+        await user.click(within(panel).getAllByRole('button', { name: 'Check in' })[0]);
+        await user.click(screen.getByRole('button', { name: 'Save visit' }));
+      }
+      // Both pubs new: Common 10 × 2 + breakfast 10, Uncommon 20 × 2
+      expect(within(panel).getByRole('status')).toHaveTextContent('Crawl complete! 70 points');
+      expect(within(panel).getByRole('status')).toHaveTextContent('Unlocked: First Pint, Crawler');
+      await user.click(within(panel).getByRole('button', { name: 'Finish crawl' }));
+      expect(screen.getByText('Crawler').closest('li')).toHaveClass('unlocked');
+      expect(JSON.parse(window.localStorage.getItem('spoons-collector-crawl-history-v1')!)).toHaveLength(1);
+    });
+
+    it('says when the street route could not be had', async () => {
+      const user = renderApp();
+      await planWith(user);
+      expect(await screen.findByText(/Couldn't get the route along the streets/)).toBeInTheDocument();
+    });
+
+    it("joins a friend's crawl from a link, after asking", async () => {
+      window.history.replaceState(null, '', `/?crawl=${encodeCrawl(makeCrawl({ startTime: 600 }))}`);
+      const user = renderApp();
+      const dialog = screen.getByRole('alertdialog', { name: 'Join this crawl?' });
+      expect(dialog).toHaveTextContent('2 pubs from The Cuthbert Brodrick, Leeds on 15 Nov 2026.');
+      await user.click(within(dialog).getByRole('button', { name: 'Join crawl' }));
+      expect(screen.getByRole('region', { name: 'Your Spoons crawl' })).toBeInTheDocument();
+      expect(window.location.search).toBe('');
+    });
+
+    it("says when a link's crawl can't be opened", async () => {
+      window.history.replaceState(null, '', '/?crawl=SC1.broken');
+      const user = renderApp();
+      const dialog = screen.getByRole('alertdialog', { name: "Couldn't open that crawl" });
+      expect(dialog).toHaveTextContent('damaged');
+      await user.click(within(dialog).getByRole('button', { name: 'OK' }));
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
   });
 });

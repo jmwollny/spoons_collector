@@ -6,19 +6,38 @@ const file = (contents: object) => JSON.stringify(contents);
 const visits = [makeVisit(1, '2026-11-01'), makeVisit(2, '2026-10-01')];
 
 describe('parseBackup', () => {
-  it('reads a version 2 backup with a crawl', () => {
+  it('reads a version 3 backup with a crawl, finished crawls and visit notes', () => {
+    const crawl = { id: 'crawl-1', stops: [] };
+    const crawlHistory = [
+      { id: 'c1', date: '2026-11-01', pubCount: 3, totalMiles: 1, mode: 'walk', score: 90, meals: [], treasureHunt: false, revealedCount: 0 },
+    ];
+    const withNotes = [{ ...visits[0], drink: 'Abbot Ale', company: 'Sam', notes: 'Quiz', hasPhoto: true }];
+    expect(parseBackup(file({ app: 'spoons_collector', version: 3, visits: withNotes, crawl, crawlHistory }))).toEqual({
+      visits: withNotes,
+      crawl,
+      crawlHistory,
+    });
+  });
+
+  it('still reads version 2 and 1 backups', () => {
     const crawl = { id: 'crawl-1', stops: [] };
     expect(parseBackup(file({ app: 'spoons_collector', version: 2, visits, crawl }))).toEqual({
       visits,
       crawl,
+      crawlHistory: [],
     });
-  });
-
-  it('still reads a version 1 backup, which has no crawl', () => {
     expect(parseBackup(file({ app: 'spoons_collector', version: 1, visits }))).toEqual({
       visits,
       crawl: null,
+      crawlHistory: [],
     });
+  });
+
+  it('rejects visits with notes of the wrong kind', () => {
+    const bad = [{ ...visits[0], notes: 42 }];
+    expect(() => parseBackup(file({ app: 'spoons_collector', version: 3, visits: bad }))).toThrow('damaged');
+    const badPhoto = [{ ...visits[0], hasPhoto: 'yes' }];
+    expect(() => parseBackup(file({ app: 'spoons_collector', version: 3, visits: badPhoto }))).toThrow('damaged');
   });
 
   it('rejects files that are not backups', () => {

@@ -78,9 +78,13 @@ export const Marker = ({
   </button>
 );
 
-export const Polyline = ({ positions }: { positions: LatLng[] }) => (
-  <div data-testid="line" data-positions={JSON.stringify(positions)} />
-);
+export const Polyline = ({
+  positions,
+  pathOptions,
+}: {
+  positions: LatLng[];
+  pathOptions?: { dashArray?: string };
+}) => <div data-testid="line" data-positions={JSON.stringify(positions)} data-dashed={Boolean(pathOptions?.dashArray)} />;
 
 export const Circle = ({ center, radius }: { center: LatLng; radius: number }) => (
   <div data-testid="accuracy-circle" data-center={center.join(',')} data-radius={radius} />

@@ -1,0 +1,253 @@
+.stats-empty {
+  margin: 0;
+  color: #64748b;
+}
+
+/* Three big numbers across the top */
+.stats-headline {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+.stats-headline > div {
+  padding: 0.6rem 0.75rem;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.stats-headline dt {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.stats-headline dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+/* ---- Visits per month ---- */
+.month-chart {
+  margin: 0 0 1rem;
+}
+
+.month-chart-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Reserves its line so the chart doesn't jump when it appears */
+.month-chart-tooltip {
+  min-height: 1.3em;
+  margin: 0.15rem 0 0.25rem;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.month-chart-plot {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  align-items: end;
+  height: 120px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.month-chart-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  outline: none;
+  cursor: default;
+}
+
+/* A thin column, rounded at the data end, standing on the baseline */
+.month-chart-bar {
+  width: min(70%, 24px);
+  border-radius: 4px 4px 0 0;
+  background: #2563eb;
+  transition: height 0.3s ease;
+}
+
+.month-chart-column.is-active .month-chart-bar,
+.month-chart-column:focus-visible .month-chart-bar {
+  background: #1d4ed8;
+}
+
+.month-chart-column:focus-visible {
+  box-shadow: inset 0 0 0 2px #93c5fd;
+  border-radius: 6px;
+}
+
+.month-chart-peak {
+  margin-bottom: 2px;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.month-chart-label {
+  position: absolute;
+  bottom: -1.3rem;
+  color: #64748b;
+  font-size: 0.72rem;
+}
+
+.month-chart + .stats-facts {
+  margin-top: 1.6rem;
+}
+
+/* ---- Facts ---- */
+.stats-facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 1.6rem 0 1rem;
+}
+
+.stats-facts > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.2rem 0.75rem;
+}
+
+.stats-facts dt {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.stats-facts dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: right;
+}
+
+.stats-year-button {
+  width: 100%;
+}
+
+/* ---- Year in Spoons ---- */
+.year-in-spoons {
+  width: min(100%, 28rem);
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+}
+
+.year-in-spoons-year {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.year-in-spoons-year select {
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.5rem 2.5rem 0.5rem 0.8rem;
+  font: inherit;
+}
+
+/* The card itself, like the pub cards: dark with an amber border */
+.year-card {
+  margin-bottom: 1rem;
+  padding: 1.25rem 1.4rem;
+  border: 8px solid #f59e0b;
+  border-radius: 18px;
+  background: #1c1c1e;
+  color: #f5f5f7;
+}
+
+.year-card-kicker {
+  margin: 0;
+  color: #aeaeaf;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.year-card-year {
+  margin: 0 0 0.75rem;
+  font-size: 3rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.year-card-numbers {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+}
+
+.year-card-numbers > div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+
+.year-card-numbers dd {
+  margin: 0;
+  color: #f59e0b;
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.year-card-numbers dt {
+  color: #aeaeaf;
+  font-size: 0.85rem;
+}
+
+.year-card-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.year-card-lines > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.year-card-lines dt {
+  color: #aeaeaf;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.year-card-lines dd {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.year-in-spoons-status {
+  margin: 0.75rem 0 0;
+  color: #475569;
+  font-size: 0.9rem;
+}
+
+/* For screen readers only */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
