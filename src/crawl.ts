@@ -62,7 +62,7 @@ export type CrawlOptions = {
 };
 
 export const MIN_STOPS = 2;
-export const MAX_STOPS = 8;
+export const MAX_STOPS = 10;
 
 // Average speeds, and how much longer a real route is than a straight line
 const MPH: Record<TravelMode, number> = { walk: 3, drive: 25 };

@@ -1,5 +1,14 @@
 /// <reference types="leaflet.markercluster" />
-import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap } from 'react-leaflet';
+import {
+  Circle,
+  CircleMarker,
+  MapContainer,
+  Marker,
+  Polyline,
+  TileLayer,
+  Tooltip,
+  useMap,
+} from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -44,6 +53,9 @@ interface MapProps {
   locationError: string | null;
   // The crawl under way, if any
   crawlRoute: CrawlRoute | null;
+  // Where the user is right now, while live location is on (accuracy in
+  // metres). Shown instead of the Near me position.
+  livePosition?: { lat: number; lon: number; accuracy: number } | null;
   // Changes whenever the map should zoom to show the whole crawl
   routeFitKey: number;
 }
@@ -315,7 +327,9 @@ export function Map({
   locationError,
   crawlRoute,
   routeFitKey,
+  livePosition,
 }: MapProps) {
+  const dot = livePosition ?? userPosition;
   // On phones the key folds away behind a button while the map fills the screen
   const [isKeyOpen, setIsKeyOpen] = useState(false);
   // The location error the user closed, so it stays closed until a new one
@@ -341,9 +355,18 @@ export function Map({
           {crawlRoute && (
             <CrawlRouteLayer route={crawlRoute} fitKey={routeFitKey} onSelect={onLocationSelect} />
           )}
-          {userPosition && (
+          {livePosition && (
+            // How far out the reading may be
+            <Circle
+              center={[livePosition.lat, livePosition.lon]}
+              radius={livePosition.accuracy}
+              pathOptions={{ color: '#2563eb', weight: 1, opacity: 0.4, fillOpacity: 0.1 }}
+              interactive={false}
+            />
+          )}
+          {dot && (
             <CircleMarker
-              center={[userPosition.lat, userPosition.lon]}
+              center={[dot.lat, dot.lon]}
               radius={8}
               pathOptions={{ color: '#ffffff', weight: 3, fillColor: '#2563eb', fillOpacity: 1 }}
             >

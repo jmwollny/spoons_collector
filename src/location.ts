@@ -8,7 +8,7 @@ const DENIED = ['OS-PLUG-GLOC-0003', 'OS-PLUG-GLOC-0009', 1];
 const SERVICES_OFF = ['OS-PLUG-GLOC-0007', 'OS-PLUG-GLOC-0016', 'OS-PLUG-GLOC-0017', 2];
 const TIMED_OUT = ['OS-PLUG-GLOC-0010', 3];
 
-const friendlyMessage = (error: unknown) => {
+export const friendlyMessage = (error: unknown) => {
   const code = (error as { code?: string | number })?.code;
   if (code !== undefined && DENIED.includes(code)) {
     return 'Location access is blocked. Allow it for this app in your settings to use Near me.';

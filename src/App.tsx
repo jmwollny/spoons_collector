@@ -25,6 +25,8 @@ import { CrawlPanel } from './components/CrawlPanel';
 import type { CrawlRoute } from './components/Map';
 import { crawlTrail, usePubTrail } from './trail';
 import { unlockedTitles } from './achievements';
+import { useArrival, useLiveLocation } from './liveLocation';
+import { ArrivalBanner } from './components/ArrivalBanner';
 import { TrailNav } from './components/TrailNav';
 
 type VisitFilter = 'all' | 'visited' | 'unvisited';
@@ -63,6 +65,16 @@ const loadVisits = (): VisitEntry[] => {
     const id = idsByOsmId.get(visit.locationId);
     return id === undefined ? [] : [{ ...visit, locationId: id }];
   });
+};
+
+// Whether live location was left on, remembered between visits
+const liveLocationKey = 'spoons-collector-live-location';
+const readLiveLocationSetting = () => {
+  try {
+    return window.localStorage.getItem(liveLocationKey) === 'on';
+  } catch {
+    return false;
+  }
 };
 
 const pubsById = new globalThis.Map(locations.map((location) => [location.id, location]));
@@ -116,6 +128,9 @@ function App() {
   const [crawl, setCrawl] = useState<Crawl | null>(() => loadCrawl(locations));
   const [isCrawlPlannerOpen, setIsCrawlPlannerOpen] = useState(false);
   const [isEndCrawlPending, setIsEndCrawlPending] = useState(false);
+  const [isLiveLocationOn, setIsLiveLocationOn] = useState(readLiveLocationSetting);
+  // Pubs whose "You're at" banner the user closed this session
+  const [dismissedArrivals, setDismissedArrivals] = useState<Set<number>>(() => new Set());
   // During a crawl the page shows only the map and the crawl ("crawl
   // mode"), unless the user chose to browse all the pubs meanwhile
   const [isBrowsingDuringCrawl, setIsBrowsingDuringCrawl] = useState(false);
@@ -141,6 +156,14 @@ function App() {
   useEffect(() => {
     saveCrawl(crawl);
   }, [crawl]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(liveLocationKey, isLiveLocationOn ? 'on' : 'off');
+    } catch {
+      // Not remembered; it just starts off next time
+    }
+  }, [isLiveLocationOn]);
 
 
   const visitedLocationIds = useMemo(
@@ -351,6 +374,48 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown, true);
   }, []);
 
+  // ---- Live location: notice when the user is at a pub ----
+  const live = useLiveLocation(isLiveLocationOn);
+  const arrivedPubId = useArrival(live.position, locations);
+  const arrivedPub = arrivedPubId === null ? undefined : pubsById.get(arrivedPubId);
+  const today = getTodayDate();
+  const isCheckedInToday = (pubId: number) =>
+    Boolean(indexedVisits[pubId]?.some((visit) => visit.date === today));
+  const arrivalCrawlIndex =
+    crawl && arrivedPubId !== null ? crawl.stops.findIndex((stop) => stop.pubId === arrivedPubId) : -1;
+  // The banner: not for a pub dismissed, or already checked in at today
+  const bannerPub =
+    arrivedPub && !dismissedArrivals.has(arrivedPub.id) && !isCheckedInToday(arrivedPub.id)
+      ? arrivedPub
+      : undefined;
+
+  // Whether the user has picked a pub themselves. Until they have (or when
+  // they reach a stop on their crawl), arriving at a pub selects it, so
+  // the map follows them; otherwise the banner just offers it.
+  const userHasChosenPub = useRef(false);
+  const autoSelectedPubId = useRef<number | null>(null);
+  // The pub selected when the app opened, which the user didn't choose
+  const initialPubId = useRef(selectedLocationId);
+  useEffect(() => {
+    if (
+      selectedLocationId !== initialPubId.current &&
+      selectedLocationId !== autoSelectedPubId.current
+    ) {
+      userHasChosenPub.current = true;
+    }
+  }, [selectedLocationId]);
+
+  useEffect(() => {
+    if (arrivedPubId === null) return;
+    const isCrawlStop = isCrawlMode && arrivalCrawlIndex !== -1;
+    if (!userHasChosenPub.current || isCrawlStop) {
+      autoSelectedPubId.current = arrivedPubId;
+      selectAnyPub(arrivedPubId);
+    }
+    // Only when the user arrives somewhere new
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivedPubId]);
+
   const scrollToMap = () => {
     if (!isMapExpanded) {
       mapRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -536,6 +601,15 @@ function App() {
               >
                 🍺 Plan a crawl
               </button>
+              <button
+                type="button"
+                className={`visit-form-close live-toggle ${isLiveLocationOn ? 'is-on' : ''}`}
+                onClick={() => setIsLiveLocationOn((on) => !on)}
+                aria-pressed={isLiveLocationOn}
+                title="Spot when you're at a Wetherspoon, while the app is open"
+              >
+                📍 Live location: {isLiveLocationOn ? 'On' : 'Off'}
+              </button>
 
               {selectedLocation && (
                 <div className={`selected-visit-details ${!hasVisitsForSelectedLocation ? 'is-unvisited' : ''}`}>
@@ -575,6 +649,34 @@ function App() {
               )}
             </div>
           </div>
+
+          {live.error && (
+            <p className="near-me-error" role="alert">
+              {live.error}
+            </p>
+          )}
+
+          {bannerPub && (
+            <ArrivalBanner
+              pub={bannerPub}
+              crawlStop={
+                arrivalCrawlIndex !== -1 && crawl
+                  ? { number: arrivalCrawlIndex + 1, of: crawl.stops.length }
+                  : undefined
+              }
+              onShow={() => {
+                selectAnyPub(bannerPub.id);
+                scrollToMap();
+              }}
+              onCheckIn={() => {
+                selectAnyPub(bannerPub.id);
+                openAddVisit();
+              }}
+              onDismiss={() =>
+                setDismissedArrivals((current) => new Set(current).add(bannerPub.id))
+              }
+            />
+          )}
 
           {isCardViewerOpen && (
             <CardViewer
@@ -717,6 +819,7 @@ function App() {
                 locationError={locationError}
                 crawlRoute={crawlRoute}
                 routeFitKey={routeFitKey}
+                livePosition={live.position}
               >
                 <SelectedPubBar
                   pub={selectedLocation}
