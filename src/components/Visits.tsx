@@ -12,8 +12,7 @@ type VisitsProps = {
   // Every region in the dataset, so the dropdown doesn't shrink to match the filtered list
   regions: string[];
   indexedVisits: Record<number, VisitEntry[]>;
-  onSelectLocation?: (locationId: number) => void;
-  // Opens a pub's card full size
+  // Selects a pub (centring the map on it) and opens its card full size
   onOpenCard: (locationId: number) => void;
   selectedLocationId?: number;
   searchTerm?: string;
@@ -43,7 +42,6 @@ export const Visits = ({
   locations,
   regions,
   indexedVisits,
-  onSelectLocation,
   onOpenCard,
   selectedLocationId,
   searchTerm = '',
@@ -171,20 +169,6 @@ export const Visits = ({
     });
   }, [locations, searchTerm, selectedRegion, visitFilter, indexedVisits, sortBy, distances]);
 
-  /**
-   * With a mouse, the first click selects the pub (the map beside the list
-   * centres on it) and a second click opens its card full size. On a touch
-   * screen the map is above the list, out of sight, so one tap does both.
-   */
-  const handleCardClick = (id: number) => {
-    const isTouch = window.matchMedia('(hover: none)').matches;
-    if (isTouch || id === selectedLocationId) {
-      onOpenCard(id);
-    } else {
-      onSelectLocation?.(id);
-    }
-  };
-
   return (
     <div className="card collection-gallery-card">
       <div className="section-heading">
@@ -273,7 +257,7 @@ export const Visits = ({
               <button
                 type="button"
                 className="visits-card-button"
-                onClick={() => handleCardClick(pub.id)}
+                onClick={() => onOpenCard(pub.id)}
                 aria-label={`${pub.name}, ${pub.city}`}
               >
                 <SpoonCard

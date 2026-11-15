@@ -896,7 +896,6 @@ function App() {
             locations={filteredLocations}
             regions={regions}
             indexedVisits={indexedVisits}
-            onSelectLocation={handleSelectLocation}
             onOpenCard={openCard}
             selectedLocationId={selectedLocationId}
             searchTerm={searchTerm}
