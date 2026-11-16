@@ -58,8 +58,8 @@
   width: 320px;
   height: 480px;
   background-color: var(--card-bg);
-  border: 8px solid var(--card-border);
-  border-radius: 16px;
+  border: 6px solid var(--card-border);
+  border-radius: 14px;
   padding: 12px;
   box-sizing: border-box;
   font-family:
@@ -72,11 +72,6 @@
   overflow: hidden;
   perspective: 1400px;
   cursor: pointer;
-  /* transition:
-    filter 0.4s ease,
-    opacity 0.4s ease,
-    border-color 0.4s ease,
-    box-shadow 0.4s ease; */
 }
 
 .spoon-card__inner {
