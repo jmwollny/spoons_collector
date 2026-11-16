@@ -72,6 +72,7 @@ Either way, the ☰ menu credits the photos to J D Wetherspoon plc.
 With the phone connected (USB or wireless debugging):
 
 ```bash
+/your project path/spoons_collector/android
 adb install -r android/app/build/outputs/apk/release/app-release.apk
 ```
 
