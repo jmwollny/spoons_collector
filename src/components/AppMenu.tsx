@@ -20,15 +20,18 @@ type AppMenuProps = {
   backup: BackupControls;
   crawlHistory: CompletedCrawl[];
   onCrawlHistoryRestore: (crawls: CompletedCrawl[]) => void;
+  // Live location: spotting when the user is at a Wetherspoon
+  isLiveLocationOn: boolean;
+  onToggleLiveLocation: () => void;
 };
 
 // How long a "Backed up…" or "Restored…" note shows for
 const STATUS_MS = 6000;
 
 /**
- * The ☰ menu in the top-right corner: backing up visits (and any crawl
- * under way) to a file, and restoring them from one. Visits otherwise live
- * only on this browser or phone.
+ * The ☰ menu in the top-right corner: live location, and backing up visits
+ * (and any crawl under way) to a file and restoring them from one. Visits
+ * otherwise live only on this browser or phone.
  */
 export const AppMenu = (props: AppMenuProps) => {
   const { visits, crawl, backup } = props;
@@ -82,6 +85,19 @@ export const AppMenu = (props: AppMenuProps) => {
 
       {isOpen && (
         <div id="app-menu-panel" className="app-menu-panel">
+          {/* Stays open, so the user sees the switch change */}
+          <button
+            type="button"
+            role="switch"
+            className={`app-menu-switch ${props.isLiveLocationOn ? 'is-on' : ''}`}
+            aria-checked={props.isLiveLocationOn}
+            onClick={props.onToggleLiveLocation}
+          >
+            <span>📍 Live location</span>
+            <span className="app-menu-switch-state">{props.isLiveLocationOn ? 'On' : 'Off'}</span>
+          </button>
+          <p className="app-menu-hint">Spots when you're at a Wetherspoon, while the app is open.</p>
+          <hr className="app-menu-divider" />
           <button type="button" onClick={backUp} disabled={visits.length === 0 && !crawl}>
             💾 Back up visits
           </button>

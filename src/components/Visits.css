@@ -1,3 +1,15 @@
+/* "Cards" and the sort order */
+.visits-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.visits-heading h2 {
+  margin: 0;
+}
+
 /* Gallery Layout Structure */
 .collection-toolbar {
   display: flex;
@@ -131,11 +143,11 @@
    Phones
    ========================================== */
 @media (max-width: 600px) {
-  .collection-gallery-card .section-heading h2 {
-    font-size: 1.3rem;
+  .visits-heading h2 {
+    font-size: 1.2rem;
   }
 
-  /* Search on the first row, the two filters side by side, sort below */
+  /* Search on the first row, the two filters side by side */
   .collection-toolbar {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -157,8 +169,8 @@
     width: 100%;
   }
 
-  .collection-filter--sort {
-    grid-column: 1 / -1;
+  .visits-heading .collection-filter--sort {
+    width: auto;
   }
 
   /* One full-width card per row, scrolling with the page rather than in

@@ -13,8 +13,6 @@ const renderToolbar = (overrides: Partial<React.ComponentProps<typeof MapToolbar
     onShowVisits: vi.fn(),
     onPlanCrawl: vi.fn(),
     canPlanCrawl: true,
-    isLiveLocationOn: false,
-    onToggleLiveLocation: vi.fn(),
     ...overrides,
   };
   render(<MapToolbar {...props}>summary here</MapToolbar>);
@@ -27,11 +25,9 @@ describe('MapToolbar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add visit' }));
     await userEvent.click(screen.getByRole('button', { name: 'Visits (2)' }));
     await userEvent.click(screen.getByRole('button', { name: /Plan a crawl/ }));
-    await userEvent.click(screen.getByRole('button', { name: /Live location: Off/ }));
     expect(props.onAddVisit).toHaveBeenCalledOnce();
     expect(props.onShowVisits).toHaveBeenCalledOnce();
     expect(props.onPlanCrawl).toHaveBeenCalledOnce();
-    expect(props.onToggleLiveLocation).toHaveBeenCalledOnce();
     expect(screen.getByText('summary here')).toBeInTheDocument();
   });
 
@@ -45,13 +41,6 @@ describe('MapToolbar', () => {
     const plan = screen.getByRole('button', { name: /Plan a crawl/ });
     expect(plan).toBeDisabled();
     expect(plan).toHaveAttribute('title', 'Finish or end this crawl to plan another');
-  });
-
-  it('shows whether live location is on', () => {
-    renderToolbar({ isLiveLocationOn: true });
-    const live = screen.getByRole('button', { name: /Live location: On/ });
-    expect(live).toHaveAttribute('aria-pressed', 'true');
-    expect(live).toHaveClass('is-on');
   });
 });
 

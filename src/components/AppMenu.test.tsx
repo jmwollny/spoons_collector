@@ -31,6 +31,8 @@ const renderPanel = (overrides: Partial<React.ComponentProps<typeof AppMenu>> = 
     backup: controls(),
     crawlHistory: [],
     onCrawlHistoryRestore: vi.fn(),
+    isLiveLocationOn: false,
+    onToggleLiveLocation: vi.fn(),
     ...overrides,
   };
   render(<AppMenu {...props} />);
@@ -55,6 +57,8 @@ describe('AppMenu: backing up and restoring', () => {
       onCrawlRestore: vi.fn(),
       crawlHistory: [],
       onCrawlHistoryRestore: vi.fn(),
+      isLiveLocationOn: false,
+      onToggleLiveLocation: vi.fn(),
     };
     const { rerender } = render(<AppMenu {...menuProps} backup={controls()} />);
     const button = screen.getByRole('button', { name: 'Menu' });
@@ -189,6 +193,25 @@ describe('AppMenu: backing up and restoring', () => {
 });
 
 describe('AppMenu notes', () => {
+  it('switches live location on and off, staying open', async () => {
+    const props = renderPanel();
+    await openMenu();
+    const live = screen.getByRole('switch', { name: /Live location/ });
+    expect(live).toHaveAttribute('aria-checked', 'false');
+    expect(live).toHaveTextContent('Off');
+    await userEvent.click(live);
+    expect(props.onToggleLiveLocation).toHaveBeenCalledOnce();
+    expect(screen.getByRole('switch', { name: /Live location/ })).toBeInTheDocument();
+  });
+
+  it('shows live location on', async () => {
+    renderPanel({ isLiveLocationOn: true });
+    await openMenu();
+    const live = screen.getByRole('switch', { name: /Live location/ });
+    expect(live).toHaveAttribute('aria-checked', 'true');
+    expect(live).toHaveTextContent('On');
+  });
+
   it('credits Wetherspoon for the pub photos', async () => {
     renderPanel();
     await openMenu();

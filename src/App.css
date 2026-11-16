@@ -375,7 +375,18 @@
   align-items: stretch;
   /* Forces left and right cards to share identical height bounds */
   width: 100%;
-  margin-top: 24px;
+}
+
+/* The map's card on a phone's other tabs: kept, so the map keeps its place
+   and zoom, but out of sight. Off the screen rather than display: none, as
+   Leaflet needs a size to work with (it fails starting up in an empty box). */
+.map-card[hidden] {
+  position: fixed;
+  top: 0;
+  left: -200vw;
+  width: 100vw;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* 🌟 Distribute identical 50/50 sizing parameters across the card layers */
@@ -726,4 +737,132 @@
   .stats-panel .progress-card-body {
     overflow: visible;
   }
+}
+
+/* ==========================================
+   The search and filters, above the map and the cards
+   ========================================== */
+.pub-filters {
+  padding: 1rem 1.2rem;
+}
+
+.pub-filters .collection-toolbar {
+  margin-top: 0;
+}
+
+.pub-filters-count {
+  margin: 0.75rem 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* ==========================================
+   Phones: one view at a time, chosen with the tab bar
+   ========================================== */
+.is-tabbed {
+  gap: 0.75rem;
+  padding: 0.75rem 0.75rem calc(72px + env(safe-area-inset-bottom));
+}
+
+.is-tabbed .hero-card {
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border-radius: 18px;
+}
+
+.is-tabbed .hero-card h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.is-tabbed .hero-copy {
+  display: none;
+}
+
+.is-tabbed .pub-filters {
+  padding: 0.75rem;
+  border-radius: 18px;
+}
+
+.is-tabbed .pub-filters-count {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.is-tabbed .card {
+  border-radius: 18px;
+}
+
+.is-tabbed .map-card {
+  padding: 0.75rem;
+  gap: 0.5rem;
+}
+
+.is-tabbed .map-selector-container {
+  margin-bottom: 0;
+}
+
+.is-tabbed .map-selector-actions {
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  padding-top: 0;
+}
+
+.is-tabbed .map-selector-actions > button {
+  padding: 0.55rem 0.8rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+/* The pub sheet on the map already shows the selected pub */
+.is-tabbed .map-selector-actions .selected-visit-details {
+  display: none;
+}
+
+/* The map's key on one line, scrolling sideways if it must */
+.is-tabbed .map-legend {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0.45rem 0.75rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+/* The Cards tab: the search stays in reach while the cards scroll */
+.is-tabbed.view-cards .pub-filters {
+  position: sticky;
+  top: 0;
+  z-index: 800;
+  background: #fff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+}
+
+/* The Stats tab: the two counts side by side, filling the width */
+.is-tabbed .hero-metrics {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* The Map tab: the map fills the screen down to the tab bar */
+.is-tabbed.view-map {
+  min-height: 100dvh;
+  box-sizing: border-box;
+}
+
+.is-tabbed.view-map .dashboard-split,
+.is-tabbed.view-map .map-card,
+.is-tabbed.view-map .map-crawl-layout,
+.is-tabbed.view-map .map-viewport-wrapper:not(.is-expanded),
+.is-tabbed.view-map .map-viewport-wrapper:not(.is-expanded) .map-shell,
+.is-tabbed.view-map .map-viewport-wrapper:not(.is-expanded) .map-area {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.is-tabbed.view-map .map-viewport-wrapper:not(.is-expanded) .leaflet-map {
+  flex: 1 1 auto;
+  height: auto;
+  min-height: 320px;
 }

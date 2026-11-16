@@ -71,6 +71,44 @@
   font-size: 0.82rem;
 }
 
+/* Live location: an on/off switch */
+.app-menu-panel .app-menu-switch {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-menu-switch-state {
+  min-width: 2.6rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #e2e8f0;
+  color: #475569;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.app-menu-switch.is-on .app-menu-switch-state {
+  background: #16a34a;
+  color: #fff;
+}
+
+.app-menu-hint {
+  margin: 0;
+  padding: 0 0.8rem 0.3rem;
+  color: #64748b;
+  font-size: 0.82rem;
+}
+
+.app-menu-divider {
+  width: 100%;
+  margin: 0.25rem 0;
+  border: none;
+  border-top: 1px solid #e2e8f0;
+}
+
 /* "Backed up…" and "Restored…" notes, at the top right of the screen */
 .app-menu-status {
   position: fixed;

@@ -244,9 +244,80 @@ describe('App', () => {
 
   it('with live location on, offers to check in at the pub the user reaches', async () => {
     const user = renderApp();
-    await user.click(screen.getByRole('button', { name: /Live location: Off/ }));
-    expect(screen.getByRole('button', { name: /Live location: On/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Menu' }));
+    await user.click(screen.getByRole('switch', { name: /Live location/ }));
+    expect(screen.getByRole('switch', { name: /Live location/ })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByTestId('you-are-here')).toBeInTheDocument();
+  });
+
+  describe('on a phone', () => {
+    const phone = () => setMediaQueryMatches((query) => query.includes('max-width: 600px'));
+    const tab = (name: RegExp) => within(screen.getByRole('navigation', { name: 'Views' })).getByRole('button', { name });
+    const mapCard = () => document.querySelector<HTMLElement>('.map-card')!;
+
+    it('opens on the map, with the filters above it and the cards on their own tab', async () => {
+      phone();
+      const user = renderApp();
+      expect(tab(/Map/)).toHaveAttribute('aria-current', 'page');
+      expect(mapCard()).toBeVisible();
+      expect(screen.getByRole('searchbox', { name: 'Search pub or city' })).toBeInTheDocument();
+      expect(list()).toBeNull();
+      expect(document.querySelector('.progress-grid')).toBeNull();
+
+      await user.click(tab(/Cards/));
+      expect(tab(/Cards/)).toHaveAttribute('aria-current', 'page');
+      // Hidden, not removed, so the map keeps its place
+      expect(mapCard()).not.toBeVisible();
+      expect(listCards()).toHaveLength(4);
+      expect(window.localStorage.getItem('spoons-collector-view')).toBe('cards');
+    });
+
+    it('filters the map and the cards together, from either tab', async () => {
+      phone();
+      const user = renderApp();
+      await user.type(screen.getByRole('searchbox', { name: 'Search pub or city' }), 'Leeds');
+      expect(screen.getByRole('heading', { name: 'Showing 2 Wetherspoon pubs' })).toBeInTheDocument();
+      await user.click(tab(/Cards/));
+      expect(listCards()).toHaveLength(2);
+      expect(screen.getByRole('searchbox', { name: 'Search pub or city' })).toHaveValue('Leeds');
+    });
+
+    it('shows progress and stats on the Stats tab, without the filters', async () => {
+      phone();
+      const user = renderApp();
+      await user.click(tab(/Stats/));
+      expect(document.querySelector('.progress-grid')).not.toBeNull();
+      expect(screen.getByText('Visited Spoons')).toBeInTheDocument();
+      expect(screen.queryByRole('searchbox', { name: 'Search pub or city' })).not.toBeInTheDocument();
+    });
+
+    it('remembers the tab, and Show on map goes back to the map', async () => {
+      window.localStorage.setItem('spoons-collector-view', 'cards');
+      phone();
+      const user = renderApp();
+      expect(tab(/Cards/)).toHaveAttribute('aria-current', 'page');
+      await user.click(listCard('The Punch Bowl, York'));
+      await user.click(screen.getByRole('button', { name: '🗺 Map' }));
+      expect(tab(/Map/)).toHaveAttribute('aria-current', 'page');
+      expect(mapCard()).toBeVisible();
+      expect(summary()).toHaveTextContent('The Punch Bowl');
+    });
+
+    it('has no tabs in crawl mode', async () => {
+      phone();
+      const user = renderApp();
+      await user.click(screen.getByRole('button', { name: /Plan a crawl/ }));
+      await user.click(screen.getByRole('button', { name: 'Plan my crawl' }));
+      expect(screen.queryByRole('navigation', { name: 'Views' })).not.toBeInTheDocument();
+      expect(mapCard()).toBeVisible();
+    });
+
+    it('has no tabs on wider screens, showing everything', () => {
+      renderApp();
+      expect(screen.queryByRole('navigation', { name: 'Views' })).not.toBeInTheDocument();
+      expect(listCards()).toHaveLength(4);
+      expect(document.querySelector('.progress-grid')).not.toBeNull();
+    });
   });
 
   it('shows the banner for a pub reached, and checks in from it', async () => {

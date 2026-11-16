@@ -9,8 +9,6 @@ type MapToolbarProps = {
   onPlanCrawl: () => void;
   // In crawl mode, one crawl at a time: end or finish it first
   canPlanCrawl: boolean;
-  isLiveLocationOn: boolean;
-  onToggleLiveLocation: () => void;
   // Shown after the buttons, e.g. the selected pub's summary
   children?: ReactNode;
 };
@@ -22,8 +20,6 @@ export const MapToolbar = ({
   onShowVisits,
   onPlanCrawl,
   canPlanCrawl,
-  isLiveLocationOn,
-  onToggleLiveLocation,
   children,
 }: MapToolbarProps) => (
   <div className="map-selector-container">
@@ -47,15 +43,6 @@ export const MapToolbar = ({
         title={canPlanCrawl ? undefined : 'Finish or end this crawl to plan another'}
       >
         🍺 Plan a crawl
-      </button>
-      <button
-        type="button"
-        className={`visit-form-close live-toggle ${isLiveLocationOn ? 'is-on' : ''}`}
-        onClick={onToggleLiveLocation}
-        aria-pressed={isLiveLocationOn}
-        title="Spot when you're at a Wetherspoon, while the app is open"
-      >
-        📍 Live location: {isLiveLocationOn ? 'On' : 'Off'}
       </button>
       {children}
     </div>

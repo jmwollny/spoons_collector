@@ -1,0 +1,52 @@
+/* Phones only: Map, Cards and Stats along the bottom of the screen */
+.tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1100;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.97);
+  box-shadow: 0 -6px 20px rgba(15, 23, 42, 0.08);
+}
+
+.tab-bar-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  min-height: 56px;
+  padding: 0.45rem 0 0.4rem;
+  border: none;
+  background: none;
+  color: #64748b;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab-bar-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+.tab-bar-button.is-active {
+  color: #1d4ed8;
+}
+
+.tab-bar-button.is-active .tab-bar-icon {
+  filter: none;
+  opacity: 1;
+}
+
+.tab-bar-button:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -4px;
+  border-radius: 12px;
+}
