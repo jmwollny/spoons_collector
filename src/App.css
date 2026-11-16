@@ -408,6 +408,14 @@
   }
 }
 
+/* Beside the toolbar's buttons when there's room for 320px, on a line of
+   its own when not: decided by the screen's width, never the name's length */
+.selected-visit-slot {
+  display: flex;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
 /* Always one line, so stepping to a pub with a long name doesn't push the
    map down: the name is cut short with "…" instead */
 .selected-visit-details {
@@ -826,7 +834,7 @@ a.backup-reminder-now {
 }
 
 /* The pub sheet on the map already shows the selected pub */
-.is-tabbed .map-selector-actions .selected-visit-details {
+.is-tabbed .map-selector-actions .selected-visit-slot {
   display: none;
 }
 
