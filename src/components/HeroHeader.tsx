@@ -29,12 +29,14 @@ export const HeroHeader = ({ visits, locations, pubsById, visitedCount, children
 
   return (
     <header className="hero-card">
-      <div className="hero-mosaic" aria-hidden="true">
-        {pubs.map((pub) => (
-          <MosaicTile key={pub.id} pub={pub} />
-        ))}
+      <div className="hero-backdrop" aria-hidden="true">
+        <div className="hero-mosaic">
+          {pubs.map((pub) => (
+            <MosaicTile key={pub.id} pub={pub} />
+          ))}
+        </div>
+        <div className="hero-shade" />
       </div>
-      <div className="hero-shade" aria-hidden="true" />
       <div className="hero-title">
         <img className="hero-logo" src="/favicon.svg" alt="" />
         <div>

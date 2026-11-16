@@ -18,8 +18,8 @@ describe('HeroHeader', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Spoons Collector' })).toBeInTheDocument();
     expect(screen.getByText(/of 4 pubs collected/)).toHaveTextContent('1 of 4 pubs collected');
     expect(screen.getByRole('button', { name: 'Menu' })).toBeInTheDocument();
+    expect(container.querySelector('.hero-backdrop')).toHaveAttribute('aria-hidden', 'true');
     const mosaic = container.querySelector('.hero-mosaic')!;
-    expect(mosaic).toHaveAttribute('aria-hidden', 'true');
     expect(mosaic.querySelectorAll('.hero-tile').length).toBeGreaterThan(0);
   });
 });

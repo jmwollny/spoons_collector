@@ -2,9 +2,8 @@
 header.hero-card {
   --hero-height: 172px;
   --hero-tile: calc((var(--hero-height) - 3px) / 2);
+  /* Not clipped itself, so the ☰ menu can open over the page below */
   position: relative;
-  overflow: hidden;
-  isolation: isolate;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -17,12 +16,19 @@ header.hero-card {
   color: #fff;
 }
 
+/* The photos and their shade, clipped to the header's rounded corners */
+.hero-backdrop {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
 /* Photos stitched together from the right edge, the user's latest first,
    so a narrow screen still shows them: every fifth one big */
 .hero-mosaic {
   position: absolute;
   inset: 0;
-  z-index: -2;
   direction: rtl;
   display: grid;
   grid-template-rows: repeat(2, var(--hero-tile));
@@ -53,10 +59,15 @@ header.hero-card {
 .hero-shade {
   position: absolute;
   inset: 0;
-  z-index: -1;
   background:
     linear-gradient(90deg, rgba(15, 23, 42, 0.96) 0%, rgba(15, 23, 42, 0.88) 30%, rgba(15, 23, 42, 0.35) 65%, rgba(15, 23, 42, 0.1) 100%),
     linear-gradient(0deg, rgba(15, 23, 42, 0.35), transparent 60%);
+}
+
+.hero-title,
+.hero-menu {
+  /* Drawn over the backdrop, which comes before them */
+  position: relative;
 }
 
 .hero-title {
@@ -116,8 +127,9 @@ header.hero-card .hero-copy {
   backdrop-filter: blur(6px);
 }
 
-.hero-menu .app-menu-button:hover {
-  background: rgba(255, 255, 255, 0.24);
+.hero-menu .app-menu-button:hover,
+.hero-menu .app-menu-button[aria-expanded='true'] {
+  background: rgba(255, 255, 255, 0.28);
 }
 
 /* Phones: shorter, with smaller photos */
