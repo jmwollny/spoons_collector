@@ -250,6 +250,8 @@
   display: flex;
   gap: 0.75rem;
   flex-wrap: wrap;
+  /* No wider than the card, so a long pub name is cut short, not overflowing */
+  min-width: 0;
   padding-top: 1rem;
 }
 
@@ -406,10 +408,16 @@
   }
 }
 
+/* Always one line, so stepping to a pub with a long name doesn't push the
+   map down: the name is cut short with "…" instead */
 .selected-visit-details {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  white-space: nowrap;
   padding: 0.4rem 0.9rem;
   border-radius: 999px;
   background: rgba(37, 99, 235, 0.05);
@@ -433,6 +441,17 @@
   font-weight: 500;
   color: inherit;
   text-transform: uppercase;
+}
+
+.selected-visit-details > * {
+  flex: none;
+}
+
+.selected-visit-details .details-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .selected-visit-details .details-divider {

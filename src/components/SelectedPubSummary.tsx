@@ -13,7 +13,10 @@ export const SelectedPubSummary = ({ pub, visits }: SelectedPubSummaryProps) => 
   const latest = visits[0];
   return (
     <div className={`selected-visit-details ${latest ? '' : 'is-unvisited'}`}>
-      <span className="details-value">{pub.name}</span>
+      {/* The full name on hover, as a long one is cut short */}
+      <span className="details-value details-name" title={pub.name}>
+        {pub.name}
+      </span>
       <span className="details-divider">·</span>
       {latest ? (
         <>
