@@ -13,19 +13,6 @@
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
 }
 
-.hero-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 1rem;
-  padding: 1.5rem;
-}
-
-.hero-copy {
-  max-width: 720px;
-  color: #4b5563;
-}
-
 .hero-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(90px, 1fr));

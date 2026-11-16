@@ -22,6 +22,7 @@ import { Visits } from './components/Visits';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { BackupReminder } from './components/BackupReminder';
 import { UpdateNotice } from './components/UpdateNotice';
+import { HeroHeader } from './components/HeroHeader';
 import { useAppUpdate } from './appUpdate';
 import { VisitHistory } from './components/VisitHistory';
 import { VisitFormModal } from './components/VisitFormModal';
@@ -176,11 +177,12 @@ function App({ data }: { data: PubData }) {
     <div
       className={`app-shell ${isCrawlMode ? 'is-crawl-mode' : ''} ${isTabbed ? `is-tabbed view-${appView.view}` : ''}`}
     >
-      <header className="hero-card">
-        <div>
-          <h1>Spoons Collector</h1>
-          <p className="hero-copy">Log your visits and rate each pub.</p>
-        </div>
+      <HeroHeader
+        visits={visits}
+        locations={locations}
+        pubsById={pubsById}
+        visitedCount={visitedLocationIds.size}
+      >
         <AppMenu
           visits={visits}
           onVisitsChange={visitsApi.setVisits}
@@ -193,7 +195,7 @@ function App({ data }: { data: PubData }) {
           isLiveLocationOn={live.isOn}
           onToggleLiveLocation={live.toggle}
         />
-      </header>
+      </HeroHeader>
 
       {appUpdate.update && !isCrawlMode && (
         <UpdateNotice update={appUpdate.update} onDismiss={appUpdate.dismiss} />
