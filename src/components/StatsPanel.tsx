@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { ProgressCard } from './ProgressCard';
 import type { PubLocation, VisitEntry } from '../types';
 import {
   averageStars,
@@ -38,12 +39,11 @@ export const StatsPanel = ({ visits, pubsById, today }: StatsPanelProps) => {
   }, [visits, pubsById, today]);
 
   return (
-    <div className="card stats-panel">
-      <div className="section-heading">
-        <h2>Your stats</h2>
-        <p>Your visits in numbers.</p>
-      </div>
-
+    <ProgressCard
+      title="Your stats"
+      subtitle="Your visits in numbers."
+      className="stats-panel"
+    >
       {visits.length === 0 ? (
         <p className="stats-empty">Log a visit to see your stats.</p>
       ) : (
@@ -113,6 +113,6 @@ export const StatsPanel = ({ visits, pubsById, today }: StatsPanelProps) => {
       )}
 
       {isYearOpen && <YearInSpoons visits={visits} pubsById={pubsById} onClose={() => setIsYearOpen(false)} />}
-    </div>
+    </ProgressCard>
   );
 };

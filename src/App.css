@@ -244,11 +244,6 @@
 
   .content-grid,
   .lower-grid,
-  .hero-card {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-  }
-
   .hero-metrics {
     width: 100%;
     min-width: unset;
@@ -528,38 +523,9 @@
   color: #166534;
 }
 
-.backup-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-/* Opened by the "Restore from backup" button instead */
+/* Opened by "Restore from backup" in the menu instead */
 .backup-file-input {
   display: none;
-}
-
-.backup-last {
-  margin-top: 0.9rem;
-  color: #64748b;
-  font-size: 0.92rem;
-}
-
-.backup-status {
-  margin-top: 0.6rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 12px;
-  font-size: 0.92rem;
-}
-
-.backup-status--success {
-  background: #f0fdf4;
-  color: #166534;
-}
-
-.backup-status--error {
-  background: #fef2f2;
-  color: #b91c1c;
 }
 
 .confirm-dialog {
@@ -721,4 +687,43 @@
   max-height: 75vh;
   object-fit: contain;
   border-radius: 12px;
+}
+
+/* Wide screens: every progress card is as tall as Your stats (see
+   ProgressSection), so a long one like Achievements doesn't push Your
+   visits far down the page. Only a card's contents scroll, below its
+   title, keeping the scrollbar inside the card's rounded corners. */
+@media (min-width: 701px) {
+  .progress-grid > .progress-card {
+    display: flex;
+    flex-direction: column;
+    height: var(--progress-card-height);
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .progress-grid > .progress-card.stats-panel {
+    height: auto;
+    min-height: 420px;
+    overflow: visible;
+  }
+
+  .progress-card > .section-heading {
+    flex: 0 0 auto;
+  }
+
+  .progress-card-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    /* Room for the scrollbar beside the contents */
+    margin-right: -0.6rem;
+    padding-right: 0.6rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(15, 23, 42, 0.2) transparent;
+  }
+
+  .stats-panel .progress-card-body {
+    overflow: visible;
+  }
 }

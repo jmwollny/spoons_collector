@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { ProgressCard } from './ProgressCard';
 import type { PubLocation } from '../types';
 import { ProgressRow } from './ProgressRow';
 
@@ -32,11 +33,10 @@ export const RarityProgress = ({ locations, visitedLocationIds }: RarityProgress
   );
 
   return (
-    <div className="card">
-      <div className="section-heading">
-        <h2>Rarity</h2>
-        <p>The further a pub is from other Wetherspoons, the rarer it is.</p>
-      </div>
+    <ProgressCard
+      title="Rarity"
+      subtitle="The further a pub is from other Wetherspoons, the rarer it is."
+    >
       <ul className="progress-list">
         {tiers.map((tier) => (
           <ProgressRow
@@ -48,6 +48,6 @@ export const RarityProgress = ({ locations, visitedLocationIds }: RarityProgress
           />
         ))}
       </ul>
-    </div>
+    </ProgressCard>
   );
 };

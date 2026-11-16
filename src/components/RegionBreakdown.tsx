@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ProgressCard } from './ProgressCard';
 import type { PubLocation } from '../types';
 import { ProgressRow } from './ProgressRow';
 
@@ -32,11 +33,10 @@ export const RegionBreakdown: React.FC<RegionBreakdownProps> = ({
   }, [locations, visitedLocationIds]);
 
   return (
-    <div className="card">
-      <div className="section-heading">
-        <h2>Regions</h2>
-        <p>See how far you are from completing each corner of the map.</p>
-      </div>
+    <ProgressCard
+      title="Regions"
+      subtitle="See how far you are from completing each corner of the map."
+    >
       <ul className="progress-list">
         {breakdowns.map((region) => (
           <ProgressRow
@@ -47,6 +47,6 @@ export const RegionBreakdown: React.FC<RegionBreakdownProps> = ({
           />
         ))}
       </ul>
-    </div>
+    </ProgressCard>
   );
 };

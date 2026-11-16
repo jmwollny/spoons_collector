@@ -32,6 +32,7 @@ import { CrawlPlanner } from './components/CrawlPlanner';
 import { CrawlPanel } from './components/CrawlPanel';
 import { ArrivalBanner } from './components/ArrivalBanner';
 import { MapPubCard } from './components/MapPubCard';
+import { AppMenu } from './components/AppMenu';
 import { ProgressSection } from './components/ProgressSection';
 
 function App({ data }: { data: PubData }) {
@@ -166,6 +167,16 @@ function App({ data }: { data: PubData }) {
               <h1>Spoons Collector</h1>
               <p className="hero-copy">Log your visits and rate each pub.</p>
             </div>
+            <AppMenu
+              visits={visits}
+              onVisitsChange={visitsApi.setVisits}
+              crawl={crawl.crawl}
+              prepareCrawl={(value) => sanitiseCrawl(value, locations)}
+              onCrawlRestore={crawl.restore}
+              backup={backup}
+              crawlHistory={crawl.history}
+              onCrawlHistoryRestore={crawl.restoreHistory}
+            />
           </header>
 
           {backup.isReminderDue && !isCrawlMode && (
@@ -432,13 +443,7 @@ function App({ data }: { data: PubData }) {
           visits={visits}
           visitedLocationIds={visitedLocationIds}
           indexedVisits={indexedVisits}
-          onVisitsChange={visitsApi.setVisits}
-          crawl={crawl.crawl}
-          prepareCrawl={(value) => sanitiseCrawl(value, locations)}
-          onCrawlRestore={crawl.restore}
-          backup={backup}
           crawlHistory={crawl.history}
-          onCrawlHistoryRestore={crawl.restoreHistory}
         />
       )}
     </div>

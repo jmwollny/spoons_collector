@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { ProgressCard } from './ProgressCard';
 import type { PubLocation, VisitEntry } from '../types';
 import { getAchievements, isUnlocked } from '../achievements';
 import type { CompletedCrawl } from '../crawlScore';
@@ -24,11 +25,10 @@ export const Achievements: React.FC<AchievementsProps> = ({
   );
 
   return (
-    <div className="card">
-      <div className="section-heading">
-        <h2>Achievements</h2>
-        <p>Small goals, big bragging rights.</p>
-      </div>
+    <ProgressCard
+      title="Achievements"
+      subtitle="Small goals, big bragging rights."
+    >
       <ul className="achievement-list">
         {achievementsList.map((achievement) => {
           const unlocked = isUnlocked(achievement);
@@ -47,6 +47,6 @@ export const Achievements: React.FC<AchievementsProps> = ({
           );
         })}
       </ul>
-    </div>
+    </ProgressCard>
   );
 };

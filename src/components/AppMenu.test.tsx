@@ -1,9 +1,9 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BackupPanel } from './BackupPanel';
-import { BackupReminder } from './BackupReminder';
+import { AppMenu } from './AppMenu';
 import { ProgressSection } from './ProgressSection';
+import { BackupReminder } from './BackupReminder';
 import type { BackupControls } from '../backupReminder';
 import { makeCrawl, makeVisit, samplePubs, samplePubsById } from '../test/fixtures';
 import type { Crawl } from '../crawl';
@@ -21,7 +21,7 @@ const controls = (overrides: Partial<BackupControls> = {}): BackupControls => ({
 const backupFile = (contents: object) =>
   new File([JSON.stringify(contents)], 'backup.json', { type: 'application/json' });
 
-const renderPanel = (overrides: Partial<React.ComponentProps<typeof BackupPanel>> = {}) => {
+const renderPanel = (overrides: Partial<React.ComponentProps<typeof AppMenu>> = {}) => {
   const props = {
     visits,
     onVisitsChange: vi.fn(),
@@ -29,76 +29,96 @@ const renderPanel = (overrides: Partial<React.ComponentProps<typeof BackupPanel>
     prepareCrawl: vi.fn((value: unknown) => (value ? (value as Crawl) : null)),
     onCrawlRestore: vi.fn(),
     backup: controls(),
+    crawlHistory: [],
+    onCrawlHistoryRestore: vi.fn(),
     ...overrides,
   };
-  render(<BackupPanel {...props} />);
+  render(<AppMenu {...props} />);
   return props;
+};
+
+const openMenu = () => userEvent.click(screen.getByRole('button', { name: 'Menu' }));
+const choose = async (item: string) => {
+  await openMenu();
+  await userEvent.click(screen.getByRole('button', { name: item }));
 };
 
 const restoreFrom = (file: File) => userEvent.upload(screen.getByLabelText('Backup file'), file);
 
-describe('BackupPanel', () => {
-  it('says when this device last backed up', () => {
-    const { rerender } = render(
-      <BackupPanel
-        visits={visits}
-        onVisitsChange={vi.fn()}
-        crawl={null}
-        prepareCrawl={vi.fn()}
-        onCrawlRestore={vi.fn()}
-        backup={controls()}
-      />,
-    );
-    expect(screen.getByText(/Last backup on this device/)).toHaveTextContent('never');
-    rerender(
-      <BackupPanel
-        visits={visits}
-        onVisitsChange={vi.fn()}
-        crawl={null}
-        prepareCrawl={vi.fn()}
-        onCrawlRestore={vi.fn()}
-        backup={controls({ lastBackup: '2026-11-10' })}
-      />,
-    );
-    expect(screen.getByText(/Last backup on this device/)).toHaveTextContent('10 Nov 2026');
+describe('AppMenu: backing up and restoring', () => {
+  it('opens from ☰ and says when this device last backed up', async () => {
+    const menuProps = {
+      visits,
+      onVisitsChange: vi.fn(),
+      crawl: null,
+      prepareCrawl: vi.fn(),
+      onCrawlRestore: vi.fn(),
+      crawlHistory: [],
+      onCrawlHistoryRestore: vi.fn(),
+    };
+    const { rerender } = render(<AppMenu {...menuProps} backup={controls()} />);
+    const button = screen.getByRole('button', { name: 'Menu' });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: '💾 Back up visits' })).not.toBeInTheDocument();
+    await openMenu();
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByText(/Last backup/)).toHaveTextContent('never');
+    rerender(<AppMenu {...menuProps} backup={controls({ lastBackup: '2026-11-10' })} />);
+    expect(screen.getByText(/Last backup/)).toHaveTextContent('10 Nov 2026');
+  });
+
+  it('closes on ☰ again, Escape, or a click elsewhere', async () => {
+    renderPanel();
+    await openMenu();
+    await openMenu();
+    expect(screen.queryByRole('button', { name: '💾 Back up visits' })).not.toBeInTheDocument();
+    await openMenu();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByRole('button', { name: '💾 Back up visits' })).not.toBeInTheDocument();
+    await openMenu();
+    await userEvent.click(document.body);
+    expect(screen.queryByRole('button', { name: '💾 Back up visits' })).not.toBeInTheDocument();
   });
 
   it('backs up and says how many visits', async () => {
     const props = renderPanel();
-    await userEvent.click(screen.getByRole('button', { name: 'Back up visits' }));
+    await choose('💾 Back up visits');
     expect(props.backup.backUp).toHaveBeenCalledOnce();
     expect(screen.getByRole('status')).toHaveTextContent('Backed up 2 visits.');
   });
 
   it('mentions the crawl when there is one', async () => {
     renderPanel({ crawl: makeCrawl() });
-    await userEvent.click(screen.getByRole('button', { name: 'Back up visits' }));
+    await choose('💾 Back up visits');
     expect(screen.getByRole('status')).toHaveTextContent('Backed up 2 visits and your crawl.');
   });
 
   it('says nothing if the share sheet was closed without saving', async () => {
     renderPanel({ backup: controls({ backUp: vi.fn().mockResolvedValue(false) }) });
-    await userEvent.click(screen.getByRole('button', { name: 'Back up visits' }));
+    await choose('💾 Back up visits');
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('says when a backup fails', async () => {
     renderPanel({ backup: controls({ backUp: vi.fn().mockRejectedValue(new Error('Disk full')) }) });
-    await userEvent.click(screen.getByRole('button', { name: 'Back up visits' }));
+    await choose('💾 Back up visits');
     expect(screen.getByRole('status')).toHaveTextContent("Couldn't save the backup: Disk full");
   });
 
-  it("can't back up with nothing to back up", () => {
+  it("can't back up with nothing to back up", async () => {
     renderPanel({ visits: [] });
-    expect(screen.getByRole('button', { name: 'Back up visits' })).toBeDisabled();
+    await openMenu();
+    expect(screen.getByRole('button', { name: '💾 Back up visits' })).toBeDisabled();
   });
 
   it('opens the file picker from Restore', async () => {
     renderPanel();
     const input = screen.getByLabelText<HTMLInputElement>('Backup file');
     const click = vi.spyOn(input, 'click');
-    await userEvent.click(screen.getByRole('button', { name: 'Restore from backup' }));
+    await choose('📂 Restore from backup');
     expect(click).toHaveBeenCalledOnce();
+    // The menu closes, leaving the file picker
+    expect(screen.queryByRole('button', { name: '💾 Back up visits' })).not.toBeInTheDocument();
   });
 
   it('restores new visits from a backup after asking', async () => {
@@ -168,7 +188,30 @@ describe('BackupPanel', () => {
   });
 });
 
-describe('BackupPanel and finished crawls', () => {
+describe('AppMenu notes', () => {
+  afterEach(() => vi.useRealTimers());
+
+  it('shows a success note at the top right that goes by itself', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPanel();
+    await choose('💾 Back up visits');
+    expect(screen.getByRole('status')).toHaveTextContent('Backed up 2 visits.');
+    act(() => vi.advanceTimersByTime(6000));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('keeps an error until dismissed', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    renderPanel({ backup: controls({ backUp: vi.fn().mockRejectedValue(new Error('Disk full')) }) });
+    await choose('💾 Back up visits');
+    act(() => vi.advanceTimersByTime(10000));
+    expect(screen.getByRole('status')).toHaveTextContent("Couldn't save the backup: Disk full");
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('AppMenu and finished crawls', () => {
   const done = { id: 'c1', date: '2026-11-01', pubCount: 3, totalMiles: 1, mode: 'walk', score: 90, meals: [], treasureHunt: false, revealedCount: 0 };
 
   it('restores finished crawls not here yet', async () => {
@@ -230,7 +273,7 @@ describe('BackupReminder', () => {
 });
 
 describe('ProgressSection', () => {
-  it('shows achievements, rarity, regions and backups', () => {
+  it('shows stats, achievements, rarity and regions', () => {
     render(
       <ProgressSection
         locations={samplePubs}
@@ -239,15 +282,39 @@ describe('ProgressSection', () => {
         visits={visits}
         visitedLocationIds={new Set([1, 2])}
         indexedVisits={{ 1: [visits[0]], 2: [visits[1]] }}
-        onVisitsChange={vi.fn()}
-        crawl={null}
-        prepareCrawl={vi.fn()}
-        onCrawlRestore={vi.fn()}
-        backup={controls()}
       />,
     );
-    for (const heading of ['Your stats', 'Achievements', 'Rarity', 'Regions', 'Your visits']) {
+    for (const heading of ['Your stats', 'Achievements', 'Rarity', 'Regions']) {
       expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument();
+    }
+    // Backups live in the ☰ menu now
+    expect(screen.queryByRole('heading', { name: 'Your visits' })).not.toBeInTheDocument();
+  });
+
+  it('makes every card as tall as the stats card, at least 420px', () => {
+    const renderSection = () =>
+      render(
+        <ProgressSection
+          locations={samplePubs}
+          pubsById={samplePubsById}
+          today="2026-11-15"
+          visits={visits}
+          visitedLocationIds={new Set([1, 2])}
+          indexedVisits={{ 1: [visits[0]], 2: [visits[1]] }}
+        />,
+      );
+    // jsdom measures everything as 0px tall, so the minimum applies
+    const { container, unmount } = renderSection();
+    expect(container.querySelector<HTMLElement>('.progress-grid')!.style.getPropertyValue('--progress-card-height')).toBe('420px');
+    unmount();
+
+    const offsetHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetHeight')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 610 });
+    try {
+      const tall = renderSection();
+      expect(tall.container.querySelector<HTMLElement>('.progress-grid')!.style.getPropertyValue('--progress-card-height')).toBe('610px');
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetHeight', offsetHeight);
     }
   });
 });

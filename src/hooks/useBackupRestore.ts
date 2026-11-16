@@ -126,5 +126,6 @@ export const useBackupRestore = ({
     readFile,
     confirmRestore,
     cancelRestore: () => setPendingRestore(null),
+    clearStatus: () => setStatus(null),
   };
 };
