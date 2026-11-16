@@ -31,7 +31,7 @@ export const usePubFilters = (locations: PubLocation[], visitedLocationIds: Set<
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedRegion('all');
-    setVisitFilter('all');
+    setVisitFilter('visited');
   };
 
   return {
