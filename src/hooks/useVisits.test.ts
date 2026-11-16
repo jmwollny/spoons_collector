@@ -63,17 +63,21 @@ describe('useVisits', () => {
   });
 
   it('keeps a second copy, and restores from it if local storage was cleared', async () => {
+    // Checks only for its own visit, so a late save from another test
+    // can't upset it
     const first = renderHook(() => useVisits(samplePubs));
-    await waitFor(async () => expect((await Preferences.get({ key: copyKey })).value).toBe('[]'));
-    act(() => first.result.current.addVisit(makeVisit(2, '2026-11-15')));
-    await waitFor(async () => expect((await Preferences.get({ key: copyKey })).value).toContain('"locationId":2'));
+    act(() => first.result.current.addVisit(makeVisit(2, '2026-11-15', { id: 'copy-test' })));
+    await waitFor(async () =>
+      expect((await Preferences.get({ key: copyKey })).value).toContain('"id":"copy-test"'),
+    );
     first.unmount();
 
     // Android clears the web view's storage, but not the app's own
     window.localStorage.removeItem(storageKey);
     const second = renderHook(() => useVisits(samplePubs));
-    await waitFor(() => expect(second.result.current.visits).toHaveLength(1));
-    expect(second.result.current.visits[0].locationId).toBe(2);
+    await waitFor(() =>
+      expect(second.result.current.visits.map((visit) => visit.id)).toContain('copy-test'),
+    );
   });
 
   it("doesn't overwrite the copy with an empty list before reading it", async () => {

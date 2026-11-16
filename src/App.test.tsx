@@ -49,6 +49,8 @@ beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ['Date'] });
   vi.setSystemTime(new Date(2026, 10, 15, 12));
   restoreLayout = stubLayout({ width: 1000, height: 3000, rowHeight: 300 });
+  // Start with every pub showing, as if the user had chosen All visits
+  window.localStorage.setItem('spoons-collector-visit-filter', 'all');
   setMediaQueryMatches(() => false);
   resetFakeMap();
   live.arrivedPubId = null;
@@ -92,6 +94,20 @@ describe('App', () => {
     expect(metric('Visited Spoons')).toHaveTextContent('0');
     expect(screen.getByRole('heading', { name: 'Achievements' })).toBeInTheDocument();
     expect(summary()).toHaveTextContent('The Cuthbert Brodrick·Not visited yet');
+  });
+
+  it('opens on the pubs visited, then remembers the filter chosen', async () => {
+    window.localStorage.removeItem('spoons-collector-visit-filter');
+    window.localStorage.setItem(
+      'spoons-collector-v2',
+      JSON.stringify([{ id: 'v1', locationId: 3, date: '2026-11-01', rating: 2 }]),
+    );
+    const user = renderApp();
+    expect(screen.getByRole('combobox', { name: 'Visited or not' })).toHaveValue('visited');
+    expect(listCards().map((card) => card.getAttribute('aria-label'))).toEqual(['The Punch Bowl, York']);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Visited or not' }), 'all');
+    expect(window.localStorage.getItem('spoons-collector-visit-filter')).toBe('all');
+    expect(listCards()).toHaveLength(4);
   });
 
   it('logs a visit, updating the summary, counters and achievements', async () => {

@@ -424,7 +424,7 @@ function App({ data }: { data: PubData }) {
             visitFilter={filters.visitFilter}
             onSearchChange={filters.setSearchTerm}
             onRegionChange={filters.setSelectedRegion}
-            onVisitFilterChange={filters.setVisitFilter}
+            onVisitFilterChange={filters.chooseVisitFilter}
             sortBy={filters.sortBy}
             onSortChange={filters.setSortBy}
             userPosition={nearMe.userPosition}
