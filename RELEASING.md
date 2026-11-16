@@ -68,15 +68,18 @@ The pub photos are Wetherspoon's, so there are two kinds of build:
   `public/images`, so photos are fast and work offline. Keep this one to
   yourself.
 - **Shareable** (`npm run build:shareable` in place of `npm run build`):
-  leaves the photos out and loads each one from Wetherspoon's site when
-  it's shown, so the APK (about 3 MB rather than 37 MB) doesn't
+  leaves the photos and the pub histories out, and loads each from
+  Wetherspoon's site when it's shown (a history when its card is turned
+  over or it makes a treasure-hunt clue), so the APK (about 3 MB rather than 37 MB) doesn't
   redistribute them. Use this for anything public, e.g. a GitHub Release.
-  Photos then need a connection.
+  They then need a connection the first time.
 
-In the app, a shareable build keeps each photo on the phone once it's been
-shown, so photos already seen work without a connection.
+A shareable build keeps each photo and history on the phone once it's been
+loaded, so those already seen work without a connection. The histories
+need each pub's `historyId` in the data (see REGENERATING_DATA.md); the
+build warns if any are missing.
 
-Either way, the ☰ menu credits the photos to J D Wetherspoon plc.
+Either way, the ☰ menu credits the photos and histories to J D Wetherspoon plc.
 
 ## Publishing a release
 

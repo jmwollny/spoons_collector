@@ -102,6 +102,7 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
             rarity={pub.rarity}
             rating={-1}
             history={pub.history}
+            historyId={pub.historyId}
             visited={visitCount > 0}
             visitCount={visitCount}
             date={date}

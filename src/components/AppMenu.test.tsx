@@ -288,7 +288,7 @@ describe('AppMenu notes', () => {
   it('credits Wetherspoon for the pub photos', async () => {
     renderPanel();
     await openMenu();
-    expect(screen.getByText(/Pub photos © J D Wetherspoon plc/)).toBeInTheDocument();
+    expect(screen.getByText(/Pub photos and histories © J D Wetherspoon plc/)).toBeInTheDocument();
   });
 
   afterEach(() => vi.useRealTimers());

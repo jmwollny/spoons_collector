@@ -10,6 +10,7 @@ export type SpoonCardProps = {
   region: string;
   rarity: string;
   history: string;
+  historyId?: number | null;
   rating: number;
   visited: boolean;
   // How many times the pub has been visited
@@ -66,6 +67,7 @@ const SpoonCard = (props: SpoonCardProps) => (
         name={props.name}
         visited={props.visited}
         history={props.history}
+        historyId={props.historyId}
         nearestMiles={props.nearestMiles}
         secondMiles={props.secondMiles}
         website={props.website}

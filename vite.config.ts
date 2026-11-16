@@ -39,13 +39,34 @@ const leaveOutPubPhotos = (outDir: string): Plugin => ({
   },
 })
 
+/**
+ * A shareable build also loads pub histories from Wetherspoon's site (see
+ * src/pubHistory.ts), so it leaves the history text out of the pub data.
+ */
+const leaveOutPubHistories = (): Plugin => ({
+  name: 'leave-out-pub-histories',
+  apply: 'build',
+  generateBundle(_options, bundle) {
+    for (const file of Object.values(bundle)) {
+      if (file.type !== 'asset' || !/spoons_enriched-.*\.json$/.test(file.fileName)) continue
+      const text = typeof file.source === 'string' ? file.source : new TextDecoder().decode(file.source)
+      const pubs = JSON.parse(text) as { history?: string; historyId?: number | null }[]
+      const withoutId = pubs.filter((pub) => !pub.historyId).length
+      if (withoutId > 0) {
+        this.warn(`${withoutId} pubs have no historyId, so show no history (run node history-ids.js)`)
+      }
+      file.source = JSON.stringify(pubs.map((pub) => ({ ...pub, history: '' })))
+    }
+  },
+})
+
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     preloadPubData(),
     ...(loadEnv(mode, process.cwd(), 'VITE_').VITE_PUB_PHOTOS === 'online' || process.env.VITE_PUB_PHOTOS === 'online'
-      ? [leaveOutPubPhotos('dist')]
+      ? [leaveOutPubPhotos('dist'), leaveOutPubHistories()]
       : []),
   ],
   build: {

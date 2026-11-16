@@ -2,7 +2,11 @@
 
 Collect Wetherspoon pubs like trading cards. Every pub in the UK gets a card with its photo, its history and a rarity based on how isolated it is from other Wetherspoons. Log a visit and a star rating, and watch your collection grow on the map.
 
-Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits are stored on your device (in local storage, with a second copy in the app's own settings store), so there is no account or server. Back them up from the **Your visits** panel; backups include any crawl under way.
+Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits are stored on your device (in local storage, with a second copy in the app's own settings store), so there is no account or server. Back them up from the **☰** menu; backups include any crawl under way and, unless you turn it off, your visit photos.
+
+## Download
+
+Get the Android app from the [latest release](https://github.com/jmwollny/spoons_collector/releases/latest): open that page on your phone, tap the `.apk` file and allow Android to install it. The app tells you when a newer version is out.
 
 ## Getting started
 
@@ -55,7 +59,20 @@ npx cap sync android
 npx cap open android
 ```
 
-To build a signed APK to install on a phone, see [RELEASING.md](RELEASING.md).
+To build a signed APK to install on a phone:
+
+```bash
+npm run apk            # shareable: pub photos load from Wetherspoon's site
+npm run apk -- --own   # your own copy, with the pub photos included
+```
+
+Publishing a new version:
+
+1. Bump `versionCode` and `versionName` in `android/app/build.gradle`.
+2. Run `npm run apk`, then commit and push.
+3. Run the `gh release create v…` command it prints. Installed copies of the app then say the new version is out.
+
+[RELEASING.md](RELEASING.md) has the details, including the signing key.
 
 ## How it works
 
@@ -75,7 +92,7 @@ Flip a card to see both distances.
 
 ### Visits
 
-Each visit records the date and a rating, and optionally what you drank, who you were with, notes and a photo. On a phone, adding a photo offers the camera or the gallery. Photos are shrunk to about 1,280 pixels and kept on the device: as files in the Android app's own folder, or in IndexedDB in a browser. Backups include everything except photos, which would make them very large.
+Each visit records the date and a rating, and optionally what you drank, who you were with, notes and a photo. On a phone, adding a photo offers the camera or the gallery. Photos are shrunk to about 1,280 pixels and kept on the device: as files in the Android app's own folder, or in IndexedDB in a browser. Backups include the photos too (about 0.3 MB each), unless **Photos in backups** is turned off in the ☰ menu.
 
 **Your stats** shows visits per month, your best year, weekly streaks, your favourite and most remote pubs, and the visit furthest from your usual patch. **Year in Spoons** sums up a year as a card you can share as an image.
 
@@ -129,6 +146,6 @@ Pubs, visits and photo file names use Wetherspoon's own pub id rather than the O
 
 - **Pub locations and names:** © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, available under the [Open Database Licence](https://opendatacommons.org/licenses/odbl/). The files in `assets` derived from it (`spoons.json`, `spoons_fixed.json` and the override files) are shared under the same licence.
 - **Regions:** `assets/postcode_regions.json` is derived from the ONS Postcode Directory. Source: Office for National Statistics, licensed under the [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/). Contains OS data © Crown copyright and database right. Contains Royal Mail data © Royal Mail copyright and database right.
-- **Pub photos and history text:** © J D Wetherspoon plc. They are not included in this repository. `enrich.js` fetches them from the public Wetherspoon website for your own personal use. It identifies itself with its own user agent and waits 10 seconds between requests, as the site's `robots.txt` asks. Don't publish or redistribute the results.
+- **Pub photos and history text:** © J D Wetherspoon plc. They are not included in this repository. `enrich.js` fetches them from the public Wetherspoon website for your own personal use. It identifies itself with its own user agent and waits 10 seconds between requests, as the site's `robots.txt` asks. Don't publish or redistribute the results: the shareable Android build (`npm run apk`) leaves both out and loads them from Wetherspoon's site instead.
 
 This is a personal hobby project. It is not affiliated with or endorsed by J D Wetherspoon plc.

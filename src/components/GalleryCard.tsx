@@ -33,6 +33,7 @@ export const GalleryCard = ({ pub, visits, isSelected, distanceMiles, onOpen }: 
           rarity={pub.rarity}
           rating={latest?.rating ?? -1}
           history={pub.history}
+          historyId={pub.historyId}
           visited={visits.length > 0}
           visitCount={visits.length}
           photoUrl={photoUrl}

@@ -1,6 +1,7 @@
 import type { PubLocation } from '../../types';
 import { formatArrival, isLate, type CrawlStop } from '../../crawl';
 import { makeClue } from '../../treasure';
+import { usePubHistory } from '../../pubHistory';
 import { formatMiles } from '../../utils';
 
 type CrawlStopRowProps = {
@@ -40,6 +41,9 @@ export const CrawlStopRow = ({
   onCheckIn,
   onReveal,
 }: CrawlStopRowProps) => {
+  // A shareable build loads the history for the clue (and keeps it, so the
+  // clue still works offline once the hunt is under way)
+  const history = usePubHistory(pub, isHidden);
   const distance = isStartPub
     ? 'Start here'
     : `${formatMiles(stop.legMiles)} from ${index === 0 ? 'start' : 'last stop'}`;
@@ -61,7 +65,7 @@ export const CrawlStopRow = ({
           <span className="crawl-stop-meta">
             {pub.rarity} · {timing}
           </span>
-          <q className="crawl-clue">{makeClue(pub)}</q>
+          <q className="crawl-clue">{makeClue({ ...pub, history: history.text })}</q>
         </div>
       ) : (
         <button type="button" className="crawl-stop-main" onClick={() => onSelect(pub.id)}>

@@ -78,6 +78,11 @@ Only pubs that are new, or whose website URL has changed, are scraped. Everythin
   ```
 
 - The run ends with a list of pubs added, removed and re-mapped in OSM since the last run, and any pubs left without a history, an image or a Wetherspoon id. A pub with no Wetherspoon id is left out of the app, because visits are recorded against that id. That usually means the pub's website URL is out of date: correct it in `websites.json`, or supply the missing piece in `missing_history.json` / `images.json`, then re-run steps 2 and 3.
+- **History ids:** at the end, `enrich.js` also asks the site's API which of its pub-history entries belongs to each pub (about 20 requests, 10 seconds apart), and saves it as `historyId`. A shareable build leaves the history text out and loads it from the site by this id. To add the ids to an existing `spoons_enriched.json` without a full run:
+
+  ```bash
+  node history-ids.js
+  ```
 
 ---
 

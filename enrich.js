@@ -1,6 +1,7 @@
 import fs from 'fs';
 import scrapePub from './scrape-pub.js';
 import calculateRarity from './calc-rarity.js';
+import { addHistoryIds, fetchHistoryIds } from './history-ids.js';
 import {
   checkImageTools,
   downloadImage,
@@ -363,7 +364,25 @@ async function main() {
     : [];
 
   console.log('Enriching...');
-  const enriched = await enrichSpoons(spoons, regionMap, previousSpoons);
+  const scrapedSpoons = await enrichSpoons(spoons, regionMap, previousSpoons);
+
+  // Where each pub's history is on the site, for shareable builds. Kept from
+  // the last run if the site can't be reached.
+  const previousHistoryIds = new Map(previousSpoons.map((pub) => [pub.id, pub.historyId]));
+  let historyIds = new Map();
+  try {
+    historyIds = await fetchHistoryIds();
+  } catch (error) {
+    console.error(`❌ ${error.message}: keeping the last run's history ids`);
+  }
+  const { pubs: enriched, missing: missingHistoryIds } = addHistoryIds(
+    scrapedSpoons.map((pub) => ({ ...pub, historyId: previousHistoryIds.get(pub.id) ?? null })),
+    historyIds,
+  );
+  if (missingHistoryIds.length) {
+    console.log('No history on the site for (a shareable build shows none):');
+    missingHistoryIds.forEach((pub) => console.log(' -', pub));
+  }
 
   fs.writeFileSync(SPOONS_OUT, JSON.stringify(enriched, null, 2));
   fs.rmSync(PROGRESS_FILE, { force: true });

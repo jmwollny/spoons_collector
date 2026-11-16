@@ -82,6 +82,7 @@ export const CardViewer = ({
           rarity={pub.rarity}
           rating={rating}
           history={pub.history}
+          historyId={pub.historyId}
           visited={visitCount > 0}
           visitCount={visitCount}
           date={date}

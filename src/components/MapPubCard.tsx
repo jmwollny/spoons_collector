@@ -28,6 +28,7 @@ export const MapPubCard = ({ pub, stats, trail, onOpen }: MapPubCardProps) => {
         rarity={pub.rarity}
         rating={stats.rating}
         history={pub.history}
+        historyId={pub.historyId}
         visited={stats.count > 0}
         visitCount={stats.count}
         date={stats.date}

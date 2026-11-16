@@ -14,7 +14,11 @@ export type PubLocation = {
   region: string;
   // null when the pub's page has no photo yet (typically a newly opened pub)
   imgUrl: string | null;
+  // Empty in a shareable build, which loads it from Wetherspoon's site by
+  // historyId instead (see pubHistory.ts)
   history: string;
+  // The pub's entry in the site's pub histories; null if it has none
+  historyId?: number | null;
   rarity: string;
   imgType: string | null;
   // Miles to the nearest and second-nearest other Wetherspoon. Rarity is
