@@ -55,6 +55,8 @@ npx cap sync android
 npx cap open android
 ```
 
+To build a signed APK to install on a phone, see [RELEASING.md](RELEASING.md).
+
 ## How it works
 
 ### Rarity

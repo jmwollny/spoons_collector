@@ -1,0 +1,52 @@
+<!doctype html>
+<!-- Draws the app's icon and splash images, for npm run assets:render -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; background: transparent; }
+  .canvas { position: relative; overflow: hidden; }
+  .canvas svg { position: absolute; }
+  .title {
+    position: absolute; left: 0; right: 0; text-align: center; color: #fff;
+    font: 800 120px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script type="module">
+  const pint = await (await fetch('pint.svg')).text();
+  const blue = '#1d4ed8';
+  // What each image is: its size, background, and where the pint goes
+  const images = {
+    // Old-style icon, a full square (Android rounds it as it likes)
+    'icon-only': { size: 1024, background: blue, pint: 0.62 },
+    // Adaptive icon layers. @capacitor/assets insets the foreground 16.7% on
+    // each side, so 0.66 here ends up about 44% of the icon: inside the
+    // middle 66% that every launcher's mask shape keeps
+    'icon-foreground': { size: 1024, background: 'transparent', pint: 0.66 },
+    'icon-background': { size: 1024, background: blue, pint: 0 },
+    // Splash: pint and name on blue, centred
+    'splash': { size: 2732, background: blue, pint: 0.22, title: true },
+    'splash-dark': { size: 2732, background: '#0f172a', pint: 0.22, title: true },
+  };
+  const name = new URLSearchParams(location.search).get('image');
+  const image = images[name];
+  const stage = document.getElementById('stage');
+  stage.className = 'canvas';
+  stage.style.cssText = `width:${image.size}px;height:${image.size}px;background:${image.background}`;
+  if (image.pint) {
+    const size = image.size * image.pint;
+    const offsetY = image.title ? -size * 0.25 : 0;
+    stage.insertAdjacentHTML('beforeend',
+      `<svg viewBox="0 0 64 64" width="${size}" height="${size}" style="left:${(image.size - size) / 2}px;top:${(image.size - size) / 2 + offsetY}px">${pint}</svg>`);
+    if (image.title) {
+      stage.insertAdjacentHTML('beforeend',
+        `<div class="title" style="top:${image.size / 2 + size * 0.6}px">Spoons Collector</div>`);
+    }
+  }
+  document.body.dataset.ready = 'true';
+</script>
+</body>
+</html>

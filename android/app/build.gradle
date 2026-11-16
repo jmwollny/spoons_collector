@@ -16,8 +16,32 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Release builds are signed with the key named in ~/.gradle/gradle.properties
+    // (see RELEASING.md). Without it, release builds come out unsigned.
+    def hasReleaseKey = project.hasProperty('SPOONS_RELEASE_STORE_FILE')
+    signingConfigs {
+        if (hasReleaseKey) {
+            release {
+                storeFile file(SPOONS_RELEASE_STORE_FILE)
+                storePassword SPOONS_RELEASE_STORE_PASSWORD
+                keyAlias SPOONS_RELEASE_KEY_ALIAS
+                keyPassword SPOONS_RELEASE_KEY_PASSWORD
+            }
+        }
+    }
     buildTypes {
+        // Run from Android Studio signs with the same key, so a Run build and
+        // a release APK can replace each other without uninstalling (which
+        // would delete the visits)
+        debug {
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
+        }
         release {
+            if (hasReleaseKey) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             // Android Gradle plugin 9 no longer accepts 'proguard-android.txt'.
             // Shrinking is off (minifyEnabled false), so this has no effect yet.
