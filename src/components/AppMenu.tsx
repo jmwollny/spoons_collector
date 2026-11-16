@@ -92,6 +92,10 @@ export const AppMenu = (props: AppMenuProps) => {
             Visits are only saved on this device. Last backup:{' '}
             <strong>{backup.lastBackup ? formatDate(backup.lastBackup) : 'never'}</strong>
           </p>
+          <p className="app-menu-note app-menu-credit">
+            Pub photos © J D Wetherspoon plc. Spoons Collector is an unofficial fan app, not made by or
+            connected with Wetherspoon.
+          </p>
         </div>
       )}
 

@@ -15,7 +15,7 @@ const props = (overrides: Partial<SpoonCardProps> = {}): SpoonCardProps => ({
   visited: true,
   visitCount: 1,
   date: '14 Nov 2026',
-  hasImage: true,
+  photoUrl: '/images/1783.webp',
   nearestMiles: 0.12,
   secondMiles: 4.6,
   website: 'https://example.com/pub',
@@ -46,7 +46,7 @@ describe('SpoonCard front', () => {
   });
 
   it('without a photo, shows the placeholder only', () => {
-    const { container } = render(<SpoonCard {...props({ hasImage: false })} />);
+    const { container } = render(<SpoonCard {...props({ photoUrl: null })} />);
     expect(container.querySelector('img')).toBeNull();
     expect(container.querySelector('.card-map-fallback')).toBeInTheDocument();
   });

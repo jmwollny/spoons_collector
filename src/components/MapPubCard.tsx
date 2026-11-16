@@ -3,6 +3,7 @@ import type { PubVisitStats } from '../hooks/useVisits';
 import type { PubTrail } from '../trail';
 import SpoonCard from './SpoonCard';
 import { TrailNav } from './TrailNav';
+import { pubPhotoUrl } from '../pubPhoto';
 
 type MapPubCardProps = {
   pub: PubLocation;
@@ -30,7 +31,7 @@ export const MapPubCard = ({ pub, stats, trail, onOpen }: MapPubCardProps) => (
       date={stats.date}
       small={true}
       compact={true}
-      hasImage={Boolean(pub.imgType)}
+      photoUrl={pubPhotoUrl(pub)}
       nearestMiles={pub.nearestNeighborMiles}
       secondMiles={pub.secondNeighborMiles}
       website={pub.website}

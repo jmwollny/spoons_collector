@@ -52,6 +52,21 @@ then add `SPOONS_RELEASE_STORE_FILE`, `SPOONS_RELEASE_STORE_PASSWORD`,
    `JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"`.)
 3. The APK is `android/app/build/outputs/apk/release/app-release.apk`.
 
+### Your own copy, or one to share
+
+The pub photos are Wetherspoon's, so there are two kinds of build:
+
+- **Your own** (`npm run build`, as above): includes our copies from
+  `public/images`, so photos are fast and work offline. Keep this one to
+  yourself.
+- **Shareable** (`npm run build:shareable` in place of `npm run build`):
+  leaves the photos out and loads each one from Wetherspoon's site when
+  it's shown, so the APK (about 3 MB rather than 37 MB) doesn't
+  redistribute them. Use this for anything public, e.g. a GitHub Release.
+  Photos then need a connection.
+
+Either way, the ☰ menu credits the photos to J D Wetherspoon plc.
+
 ## Installing
 
 With the phone connected (USB or wireless debugging):

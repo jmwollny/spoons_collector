@@ -189,6 +189,12 @@ describe('AppMenu: backing up and restoring', () => {
 });
 
 describe('AppMenu notes', () => {
+  it('credits Wetherspoon for the pub photos', async () => {
+    renderPanel();
+    await openMenu();
+    expect(screen.getByText(/Pub photos © J D Wetherspoon plc/)).toBeInTheDocument();
+  });
+
   afterEach(() => vi.useRealTimers());
 
   it('shows a success note at the top right that goes by itself', async () => {

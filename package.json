@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev --port 2112",
     "build": "tsc -b && vite build",
+    "build:shareable": "tsc -b && VITE_PUB_PHOTOS=online vite build",
     "lint": "oxlint",
     "preview": "vite preview",
     "coverage": "vitest run --coverage",

@@ -1,6 +1,7 @@
 import type { PubLocation, VisitEntry } from '../types';
 import { formatDate } from '../utils';
 import SpoonCard from './SpoonCard';
+import { pubPhotoUrl } from '../pubPhoto';
 
 type GalleryCardProps = {
   pub: PubLocation;
@@ -33,7 +34,7 @@ export const GalleryCard = ({ pub, visits, isSelected, distanceMiles, onOpen }: 
           history={pub.history}
           visited={visits.length > 0}
           visitCount={visits.length}
-          hasImage={Boolean(pub.imgType)}
+          photoUrl={pubPhotoUrl(pub)}
           medium={true}
           selected={isSelected}
           date={latest ? formatDate(latest.date) : null}

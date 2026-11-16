@@ -103,3 +103,9 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.app-menu-credit {
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  padding-top: 0.5rem;
+  font-size: 0.75rem;
+}

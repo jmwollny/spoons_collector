@@ -26,7 +26,8 @@ export type SpoonCardProps = {
   flipped?: boolean;
   onClick?: () => void;
   // Whether public/images holds a photo for this pub
-  hasImage: boolean;
+  // The pub's photo, or null for the dotted placeholder
+  photoUrl: string | null;
   selected?: boolean;
   date?: string | null;
   // Miles from the user, shown once they've used Near me
@@ -48,7 +49,6 @@ const SpoonCard = (props: SpoonCardProps) => (
   >
     <div className="spoon-card__inner">
       <CardFront
-        id={props.id}
         name={props.name}
         city={props.city}
         region={props.region}
@@ -57,7 +57,7 @@ const SpoonCard = (props: SpoonCardProps) => (
         visited={props.visited}
         visitCount={props.visitCount ?? 0}
         date={props.date ?? null}
-        hasImage={props.hasImage}
+        photoUrl={props.photoUrl}
         distanceMiles={props.distanceMiles}
         compact={Boolean(props.compact)}
         hidden={Boolean(props.flipped)}

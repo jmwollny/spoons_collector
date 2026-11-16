@@ -4,7 +4,6 @@ import { CardHeader } from './CardHeader';
 import { StatRow } from './StatRow';
 
 export type CardFrontProps = {
-  id: number;
   name: string;
   city: string;
   region: string;
@@ -14,8 +13,8 @@ export type CardFrontProps = {
   visitCount: number;
   // Date of the latest visit, formatted for display
   date: string | null;
-  // Whether public/images holds a photo for this pub
-  hasImage: boolean;
+  // The pub's photo, or null if it has none
+  photoUrl: string | null;
   // Miles from the user, once they've used Near me
   distanceMiles?: number;
   // Leaves out the visit date and rating (the map's card, where they show
@@ -27,7 +26,6 @@ export type CardFrontProps = {
 
 /** The front of a card: photo, region and stats */
 export const CardFront = ({
-  id,
   name,
   city,
   region,
@@ -36,7 +34,7 @@ export const CardFront = ({
   visited,
   visitCount,
   date,
-  hasImage,
+  photoUrl,
   distanceMiles,
   compact,
   hidden,
@@ -46,9 +44,9 @@ export const CardFront = ({
 
     <figure className="card-art-frame">
       {/* Without a photo the dotted placeholder below shows instead */}
-      {hasImage && (
+      {photoUrl && (
         <img
-          src={`/images/${id}.webp`}
+          src={photoUrl}
           alt={name}
           className="card-art-image"
           loading="lazy"

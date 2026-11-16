@@ -1,5 +1,7 @@
 /// <reference types="vitest/config" />
-import { defineConfig, type Plugin } from 'vite'
+import { rm } from 'node:fs/promises'
+import { join } from 'node:path'
+import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 
 /**
@@ -25,9 +27,27 @@ const preloadPubData = (): Plugin => ({
   },
 })
 
+/**
+ * A shareable build loads pub photos from Wetherspoon's site (see
+ * src/pubPhoto.ts), so it leaves our own copies in public/images out.
+ */
+const leaveOutPubPhotos = (outDir: string): Plugin => ({
+  name: 'leave-out-pub-photos',
+  apply: 'build',
+  async closeBundle() {
+    await rm(join(outDir, 'images'), { recursive: true, force: true })
+  },
+})
+
 // https://vite.dev/config/
-export default defineConfig({
-  plugins: [react(), preloadPubData()],
+export default defineConfig(({ mode }) => ({
+  plugins: [
+    react(),
+    preloadPubData(),
+    ...(loadEnv(mode, process.cwd(), 'VITE_').VITE_PUB_PHOTOS === 'online' || process.env.VITE_PUB_PHOTOS === 'online'
+      ? [leaveOutPubPhotos('dist')]
+      : []),
+  ],
   build: {
     rolldownOptions: {
       output: {
@@ -51,4 +71,4 @@ export default defineConfig({
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx', 'src/types/**', 'src/**/*.d.ts'],
     },
   },
-})
+}))

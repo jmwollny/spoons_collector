@@ -4,6 +4,7 @@ import type { PubTrail } from '../trail';
 import { useSwipe } from '../hooks/useSwipe';
 import SpoonCard from './SpoonCard';
 import { PubBarInfo } from './sheet/PubBarInfo';
+import { pubPhotoUrl } from '../pubPhoto';
 
 type SelectedPubBarProps = {
   pub: PubLocation;
@@ -104,7 +105,7 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
             visitCount={visitCount}
             date={date}
             compact={true}
-            hasImage={Boolean(pub.imgType)}
+            photoUrl={pubPhotoUrl(pub)}
             nearestMiles={pub.nearestNeighborMiles}
             secondMiles={pub.secondNeighborMiles}
             website={pub.website}

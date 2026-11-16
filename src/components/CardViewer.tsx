@@ -8,6 +8,7 @@ import { useSwipe } from '../hooks/useSwipe';
 import { TrailNav } from './TrailNav';
 import { CardViewerActions } from './viewer/CardViewerActions';
 import './CardViewer.css';
+import { pubPhotoUrl } from '../pubPhoto';
 
 type CardViewerProps = {
   pub: PubLocation;
@@ -84,7 +85,7 @@ export const CardViewer = ({
           visitCount={visitCount}
           date={date}
           full={true}
-          hasImage={Boolean(pub.imgType)}
+          photoUrl={pubPhotoUrl(pub)}
           distanceMiles={distanceMiles}
           nearestMiles={pub.nearestNeighborMiles}
           secondMiles={pub.secondNeighborMiles}
