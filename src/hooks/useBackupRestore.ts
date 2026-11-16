@@ -2,7 +2,8 @@ import { useState } from 'react';
 import type { VisitEntry } from '../types';
 import type { Crawl } from '../crawl';
 import type { BackupControls } from '../backupReminder';
-import { mergeVisits, parseBackup } from '../backup';
+import { mergeVisits, parseBackup, type BackupPhotos } from '../backup';
+import { hasStoredPhoto, restorePhoto } from '../photos';
 import type { CompletedCrawl } from '../crawlScore';
 import { plural } from '../utils';
 
@@ -21,6 +22,22 @@ export type PendingRestore = {
   crawlSkipped: boolean;
   // Finished crawls in the backup that aren't here yet
   newCrawlHistory: CompletedCrawl[];
+  // The backup's photos that aren't on this device yet
+  photos: BackupPhotos;
+};
+
+/**
+ * The backup's photos to restore: those of visits that, once restored,
+ * have a photo, where this device hasn't got it. A visit already here keeps
+ * its own photo.
+ */
+const photosToRestore = async (photos: BackupPhotos, visits: VisitEntry[]): Promise<BackupPhotos> => {
+  const withPhoto = new Set(visits.filter((visit) => visit.hasPhoto).map((visit) => visit.id));
+  const missing: BackupPhotos = {};
+  for (const [id, photo] of Object.entries(photos)) {
+    if (withPhoto.has(id) && !(await hasStoredPhoto(id))) missing[id] = photo;
+  }
+  return missing;
 };
 
 type BackupRestoreOptions = {
@@ -57,9 +74,10 @@ export const useBackupRestore = ({
         // The share sheet was closed without saving
         return;
       }
+      const withPhotos = backup.includePhotos && visits.some((visit) => visit.hasPhoto);
       setStatus({
         kind: 'success',
-        text: `Backed up ${plural(visits.length, 'visit')}${crawl ? ' and your crawl' : ''}.`,
+        text: `Backed up ${plural(visits.length, 'visit')}${withPhotos ? ' with photos' : ''}${crawl ? ' and your crawl' : ''}.`,
       });
     } catch (error) {
       setStatus({
@@ -79,7 +97,9 @@ export const useBackupRestore = ({
       const crawlToRestore = crawl ? null : backupCrawl;
       const knownCrawls = new Set(crawlHistory.map((done) => done.id));
       const newCrawlHistory = restored.crawlHistory.filter((done) => !knownCrawls.has(done.id));
-      if (addedCount === 0 && !crawlToRestore && newCrawlHistory.length === 0) {
+      const photos = await photosToRestore(restored.photos, merged);
+      const photoCount = Object.keys(photos).length;
+      if (addedCount === 0 && !crawlToRestore && newCrawlHistory.length === 0 && photoCount === 0) {
         setStatus({
           kind: 'success',
           text: 'Nothing to restore: every visit in that backup is already here.',
@@ -93,14 +113,27 @@ export const useBackupRestore = ({
         crawl: crawlToRestore,
         crawlSkipped: Boolean(backupCrawl && crawl),
         newCrawlHistory,
+        photos,
       });
     } catch (error) {
       setStatus({ kind: 'error', text: error instanceof Error ? error.message : String(error) });
     }
   };
 
-  const confirmRestore = () => {
+  const confirmRestore = async () => {
     if (!pendingRestore) return;
+    setPendingRestore(null);
+    // Photos first, so the visits find them when they're shown
+    let photoCount = 0;
+    let photosFailed = 0;
+    for (const [id, photo] of Object.entries(pendingRestore.photos)) {
+      try {
+        await restorePhoto(id, photo);
+        photoCount++;
+      } catch {
+        photosFailed++;
+      }
+    }
     onVisitsChange(pendingRestore.visits);
     if (pendingRestore.crawl) {
       onCrawlRestore(pendingRestore.crawl);
@@ -111,12 +144,14 @@ export const useBackupRestore = ({
     const extras = [
       pendingRestore.crawl && 'your crawl',
       pendingRestore.newCrawlHistory.length > 0 && plural(pendingRestore.newCrawlHistory.length, 'finished crawl'),
+      photoCount > 0 && plural(photoCount, 'photo'),
     ].filter(Boolean);
-    setStatus({
-      kind: 'success',
-      text: `Restored ${plural(pendingRestore.addedCount, 'visit')}${extras.length ? ` and ${extras.join(' and ')}` : ''}.`,
-    });
-    setPendingRestore(null);
+    const restored = `Restored ${plural(pendingRestore.addedCount, 'visit')}${extras.length ? ` and ${extras.join(' and ')}` : ''}.`;
+    setStatus(
+      photosFailed > 0
+        ? { kind: 'error', text: `${restored} ${plural(photosFailed, 'photo')} couldn't be saved on this device.` }
+        : { kind: 'success', text: restored },
+    );
   };
 
   return {

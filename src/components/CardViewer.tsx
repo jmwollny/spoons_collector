@@ -8,7 +8,7 @@ import { useSwipe } from '../hooks/useSwipe';
 import { TrailNav } from './TrailNav';
 import { CardViewerActions } from './viewer/CardViewerActions';
 import './CardViewer.css';
-import { pubPhotoUrl } from '../pubPhoto';
+import { usePubPhotoUrl } from '../pubPhoto';
 
 type CardViewerProps = {
   pub: PubLocation;
@@ -46,6 +46,7 @@ export const CardViewer = ({
   trail,
 }: CardViewerProps) => {
   const [flipped, setFlipped] = useState(false);
+  const photoUrl = usePubPhotoUrl(pub);
 
   // Escape and Android's Back button close the card; the page behind
   // can't scroll while it's open
@@ -85,7 +86,7 @@ export const CardViewer = ({
           visitCount={visitCount}
           date={date}
           full={true}
-          photoUrl={pubPhotoUrl(pub)}
+          photoUrl={photoUrl}
           distanceMiles={distanceMiles}
           nearestMiles={pub.nearestNeighborMiles}
           secondMiles={pub.secondNeighborMiles}

@@ -1,7 +1,7 @@
 import type { PubLocation, VisitEntry } from '../types';
 import { formatDate } from '../utils';
 import SpoonCard from './SpoonCard';
-import { pubPhotoUrl } from '../pubPhoto';
+import { usePubPhotoUrl } from '../pubPhoto';
 
 type GalleryCardProps = {
   pub: PubLocation;
@@ -16,6 +16,7 @@ type GalleryCardProps = {
 /** One pub in the list, as a card that opens full size when clicked */
 export const GalleryCard = ({ pub, visits, isSelected, distanceMiles, onOpen }: GalleryCardProps) => {
   const latest = visits[0];
+  const photoUrl = usePubPhotoUrl(pub);
   return (
     <div className="gallery-card-wrapper">
       <button
@@ -34,7 +35,7 @@ export const GalleryCard = ({ pub, visits, isSelected, distanceMiles, onOpen }: 
           history={pub.history}
           visited={visits.length > 0}
           visitCount={visits.length}
-          photoUrl={pubPhotoUrl(pub)}
+          photoUrl={photoUrl}
           medium={true}
           selected={isSelected}
           date={latest ? formatDate(latest.date) : null}

@@ -11,6 +11,14 @@ export const blobToBase64 = (blob: Blob) =>
     reader.readAsDataURL(blob);
   });
 
+/** base64 (without a data: URL prefix) back into a Blob */
+export const base64ToBlob = (base64: string, type: string) => {
+  const bytes = atob(base64);
+  const array = new Uint8Array(bytes.length);
+  for (let index = 0; index < bytes.length; index++) array[index] = bytes.charCodeAt(index);
+  return new Blob([array], { type });
+};
+
 const isCancel = (error: unknown) =>
   (error instanceof Error && /cancel|abort/i.test(error.message)) ||
   (error instanceof DOMException && error.name === 'AbortError');

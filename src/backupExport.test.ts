@@ -9,7 +9,7 @@ import { makeCrawl, makeVisit } from './test/fixtures';
 
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: vi.fn(() => false) } }));
 vi.mock('@capacitor/filesystem', () => ({
-  Filesystem: { writeFile: vi.fn() },
+  Filesystem: { writeFile: vi.fn(), readFile: vi.fn() },
   Directory: { Cache: 'CACHE' },
   Encoding: { UTF8: 'utf8' },
 }));
@@ -38,7 +38,7 @@ describe('exportBackup in a browser', () => {
     await expect(exportBackup(visits, makeCrawl(), '2026-11-15')).resolves.toBe(true);
     expect(saved?.name).toBe('spoons-collector-backup-2026-11-15.json');
     const contents = JSON.parse(await saved!.text);
-    expect(contents).toMatchObject({ app: 'spoons_collector', version: 3, visits, crawl: { id: 'crawl-1' }, crawlHistory: [] });
+    expect(contents).toMatchObject({ app: 'spoons_collector', version: 4, visits, crawl: { id: 'crawl-1' }, crawlHistory: [], photos: {} });
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:backup');
   });
 });
@@ -104,6 +104,29 @@ describe('useBackup', () => {
       expect(await result.current.backUp()).toBe(false);
     });
     expect(result.current.lastBackup).toBeNull();
+  });
+
+  const backedUp = () => JSON.parse(vi.mocked(Filesystem.writeFile).mock.lastCall![0].data as string);
+
+  it("includes visits' photos, unless the user turns that off", async () => {
+    vi.mocked(Filesystem.writeFile).mockClear();
+    vi.mocked(Filesystem.readFile).mockResolvedValue({ data: 'anBlZw==' });
+    const withPhoto = [makeVisit(1, '2026-11-01', { hasPhoto: true }), makeVisit(2, '2026-11-02')];
+    const { result } = renderHook(() => useBackup(withPhoto, null, '2026-11-15'));
+    expect(result.current.includePhotos).toBe(true);
+    await act(async () => {
+      await result.current.backUp();
+    });
+    expect(backedUp().photos).toEqual({ [withPhoto[0].id]: 'anBlZw==' });
+
+    act(() => result.current.toggleIncludePhotos());
+    expect(result.current.includePhotos).toBe(false);
+    expect(window.localStorage.getItem('spoons-collector-backup-photos')).toBe('off');
+    await act(async () => {
+      await result.current.backUp();
+    });
+    expect(backedUp().photos).toEqual({});
+    window.localStorage.removeItem('spoons-collector-backup-photos');
   });
 
   it('Later puts the reminder off for a week', () => {

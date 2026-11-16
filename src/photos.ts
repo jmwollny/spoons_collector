@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
-import { blobToBase64 } from './files';
+import { base64ToBlob, blobToBase64 } from './files';
 
 /**
  * Photos of visits, stored on the device under the visit's id. Too big for
@@ -47,17 +47,51 @@ const withStore = async <T,>(
 
 // ---- The store ----
 
+const writeFile = (visitId: string, base64: string) =>
+  Filesystem.writeFile({ path: filePath(visitId), data: base64, directory: Directory.Data, recursive: true });
+
 /** Saves a visit's photo, replacing any it had */
 export const savePhoto = async (visitId: string, photo: Blob) => {
   if (Capacitor.isNativePlatform()) {
-    await Filesystem.writeFile({
-      path: filePath(visitId),
-      data: await blobToBase64(photo),
-      directory: Directory.Data,
-      recursive: true,
-    });
+    await writeFile(visitId, await blobToBase64(photo));
   } else {
     await withStore('readwrite', (store) => store.put(photo, visitId));
+  }
+};
+
+/** Saves a photo from a backup, given as base64 JPEG */
+export const restorePhoto = async (visitId: string, base64: string) => {
+  if (Capacitor.isNativePlatform()) {
+    await writeFile(visitId, base64);
+  } else {
+    await withStore('readwrite', (store) => store.put(base64ToBlob(base64, 'image/jpeg'), visitId));
+  }
+};
+
+/** A visit's photo as base64, for a backup; null if it has none here */
+export const readPhotoBase64 = async (visitId: string): Promise<string | null> => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      const { data } = await Filesystem.readFile({ path: filePath(visitId), directory: Directory.Data });
+      return typeof data === 'string' ? data : await blobToBase64(data);
+    }
+    const blob = await withStore<Blob | undefined>('readonly', (store) => store.get(visitId));
+    return blob ? await blobToBase64(blob) : null;
+  } catch {
+    return null;
+  }
+};
+
+/** Whether a visit's photo is on this device */
+export const hasStoredPhoto = async (visitId: string) => {
+  try {
+    if (Capacitor.isNativePlatform()) {
+      await Filesystem.stat({ path: filePath(visitId), directory: Directory.Data });
+      return true;
+    }
+    return (await withStore<IDBValidKey | undefined>('readonly', (store) => store.getKey(visitId))) !== undefined;
+  } catch {
+    return false;
   }
 };
 

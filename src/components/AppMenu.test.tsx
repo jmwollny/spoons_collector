@@ -7,6 +7,9 @@ import { BackupReminder } from './BackupReminder';
 import type { BackupControls } from '../backupReminder';
 import { makeCrawl, makeVisit, samplePubs, samplePubsById } from '../test/fixtures';
 import type { Crawl } from '../crawl';
+import { hasStoredPhoto, restorePhoto } from '../photos';
+
+vi.mock('../photos', () => ({ hasStoredPhoto: vi.fn(), restorePhoto: vi.fn() }));
 
 const visits = [makeVisit(1, '2026-11-01'), makeVisit(2, '2026-11-02')];
 
@@ -15,6 +18,8 @@ const controls = (overrides: Partial<BackupControls> = {}): BackupControls => ({
   backUp: vi.fn().mockResolvedValue(true),
   isReminderDue: true,
   snooze: vi.fn(),
+  includePhotos: true,
+  toggleIncludePhotos: vi.fn(),
   ...overrides,
 });
 
@@ -142,6 +147,64 @@ describe('AppMenu: backing up and restoring', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Restored 1 visit.');
   });
 
+  it("restores the backup's photos that aren't on this device, before the visits", async () => {
+    const withPhoto = makeVisit(1, '2026-11-01', { hasPhoto: true });
+    const added = makeVisit(3, '2026-11-03', { hasPhoto: true });
+    // The photo of the visit already here is still here
+    vi.mocked(hasStoredPhoto).mockImplementation(async (id) => id === withPhoto.id);
+    vi.mocked(restorePhoto).mockReset().mockResolvedValue(undefined);
+    const props = renderPanel({ visits: [withPhoto, visits[1]] });
+    vi.mocked(props.onVisitsChange).mockImplementation(() =>
+      expect(restorePhoto).toHaveBeenCalledWith(added.id, 'bmV3'),
+    );
+    await restoreFrom(
+      backupFile({
+        app: 'spoons_collector',
+        version: 4,
+        visits: [withPhoto, added],
+        photos: { [withPhoto.id]: 'b2xk', [added.id]: 'bmV3' },
+      }),
+    );
+    const dialog = await screen.findByRole('alertdialog', { name: 'Restore visits?' });
+    expect(dialog).toHaveTextContent('1 photo will be restored too.');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Restore' }));
+    expect(restorePhoto).toHaveBeenCalledOnce();
+    expect(props.onVisitsChange).toHaveBeenCalledOnce();
+    expect(screen.getByRole('status')).toHaveTextContent('Restored 1 visit and 1 photo.');
+  });
+
+  it("restores a photo that's missing here, even with no new visits", async () => {
+    const withPhoto = makeVisit(1, '2026-11-01', { hasPhoto: true });
+    vi.mocked(hasStoredPhoto).mockResolvedValue(false);
+    vi.mocked(restorePhoto).mockReset().mockResolvedValue(undefined);
+    renderPanel({ visits: [withPhoto] });
+    await restoreFrom(
+      backupFile({ app: 'spoons_collector', version: 4, visits: [withPhoto], photos: { [withPhoto.id]: 'b2xk' } }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    expect(restorePhoto).toHaveBeenCalledWith(withPhoto.id, 'b2xk');
+    expect(screen.getByRole('status')).toHaveTextContent('Restored 0 visits and 1 photo.');
+  });
+
+  it("says when a photo couldn't be saved", async () => {
+    const added = makeVisit(3, '2026-11-03', { hasPhoto: true });
+    vi.mocked(hasStoredPhoto).mockResolvedValue(false);
+    vi.mocked(restorePhoto).mockReset().mockRejectedValue(new Error('Disk full'));
+    const props = renderPanel();
+    await restoreFrom(
+      backupFile({ app: 'spoons_collector', version: 4, visits: [added], photos: { [added.id]: 'bmV3' } }),
+    );
+    await userEvent.click(await screen.findByRole('button', { name: 'Restore' }));
+    expect(props.onVisitsChange).toHaveBeenCalled();
+    expect(screen.getByRole('status')).toHaveTextContent("Restored 1 visit. 1 photo couldn't be saved on this device.");
+  });
+
+  it('says the photos were backed up too', async () => {
+    renderPanel({ visits: [makeVisit(1, '2026-11-01', { hasPhoto: true })] });
+    await choose('💾 Back up visits');
+    expect(screen.getByRole('status')).toHaveTextContent('Backed up 1 visit with photos.');
+  });
+
   it("restores nothing if the user cancels", async () => {
     const props = renderPanel();
     await restoreFrom(backupFile({ app: 'spoons_collector', version: 2, visits: [makeVisit(3, '2026-11-03')] }));
@@ -193,6 +256,16 @@ describe('AppMenu: backing up and restoring', () => {
 });
 
 describe('AppMenu notes', () => {
+  it('switches photos in backups on and off', async () => {
+    const backup = controls();
+    renderPanel({ backup });
+    await openMenu();
+    const photos = screen.getByRole('switch', { name: /Photos in backups/ });
+    expect(photos).toHaveAttribute('aria-checked', 'true');
+    await userEvent.click(photos);
+    expect(backup.toggleIncludePhotos).toHaveBeenCalledOnce();
+  });
+
   it('switches live location on and off, staying open', async () => {
     const props = renderPanel();
     await openMenu();

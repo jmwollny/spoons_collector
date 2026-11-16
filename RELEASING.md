@@ -73,7 +73,24 @@ The pub photos are Wetherspoon's, so there are two kinds of build:
   redistribute them. Use this for anything public, e.g. a GitHub Release.
   Photos then need a connection.
 
+In the app, a shareable build keeps each photo on the phone once it's been
+shown, so photos already seen work without a connection.
+
 Either way, the ☰ menu credits the photos to J D Wetherspoon plc.
+
+## Publishing a release
+
+Put the shareable APK on GitHub as a release, tagged `v` and the
+`versionName`, e.g. `v1.2`:
+
+```bash
+gh release create v1.2 apk/spoons-collector-1.2-shareable.apk --title "Spoons Collector 1.2"
+```
+
+Installed copies of the app check GitHub's latest release once a day, and
+show "Version 1.2 of Spoons Collector is out" if it's newer than
+themselves, with a link to the release. So the tag must match the
+`versionName`, or the notice is wrong or never shows.
 
 ## Installing
 
@@ -90,8 +107,8 @@ apps from that source).
 **The first time** only: an app installed earlier from Android Studio was
 signed with Android Studio's own debug key, so it must be uninstalled
 first, which deletes its visits. Back them up from the ☰ menu, uninstall,
-install the APK, then restore from the backup. Photos aren't in backups;
-they're lost with the uninstall.
+install the APK, then restore from the backup. Visit photos come back too,
+as long as "Photos in backups" was on in the menu (it is unless turned off).
 
 ## Icon and splash screen
 

@@ -3,13 +3,18 @@ import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import type { VisitEntry } from './types';
 import type { Crawl } from './crawl';
+import { readPhotoBase64 } from './photos';
 import { sanitiseCrawlHistory, type CompletedCrawl } from './crawlScore';
 
 // Identifies a backup file made by this app, and its format version.
 // Version 2 added the crawl under way; version 3, visits' drinks, company
-// and notes, and the crawls finished. Earlier versions are still read.
+// and notes, and the crawls finished; version 4, visits' photos. Earlier
+// versions are still read.
 const BACKUP_APP = 'spoons_collector';
-const BACKUP_VERSION = 3;
+const BACKUP_VERSION = 4;
+
+/** Visits' photos in a backup: base64 JPEG by visit id */
+export type BackupPhotos = Record<string, string>;
 
 type BackupFile = {
   app: typeof BACKUP_APP;
@@ -20,6 +25,8 @@ type BackupFile = {
   crawl?: Crawl | null;
   // Crawls finished (version 3 on)
   crawlHistory?: CompletedCrawl[];
+  // Photos of visits (version 4 on); left out if the user chose to
+  photos?: BackupPhotos;
 };
 
 export type Backup = {
@@ -27,6 +34,17 @@ export type Backup = {
   // As found in the file: check it with sanitiseCrawl before using it
   crawl: unknown;
   crawlHistory: CompletedCrawl[];
+  // Only photos of the backup's own visits
+  photos: BackupPhotos;
+};
+
+/** The photos in a backup that belong to its visits; anything else is dropped */
+const sanitisePhotos = (value: unknown, visits: VisitEntry[]): BackupPhotos => {
+  if (typeof value !== 'object' || value === null) return {};
+  const ids = new Set(visits.map((visit) => visit.id));
+  return Object.fromEntries(
+    Object.entries(value).filter(([id, photo]) => ids.has(id) && typeof photo === 'string' && photo.length > 0),
+  );
 };
 
 const isVisitEntry = (value: unknown): value is VisitEntry => {
@@ -77,6 +95,7 @@ export const parseBackup = (text: string): Backup => {
     visits: backup.visits,
     crawl: backup.crawl ?? null,
     crawlHistory: sanitiseCrawlHistory(backup.crawlHistory),
+    photos: sanitisePhotos(backup.photos, backup.visits),
   };
 };
 
@@ -92,6 +111,18 @@ export const mergeVisits = (current: VisitEntry[], restored: VisitEntry[]) => {
   return { visits, addedCount: added.length };
 };
 
+/** The photos of the visits that have one on this device, for a backup */
+export const collectPhotos = async (visits: VisitEntry[]): Promise<BackupPhotos> => {
+  const photos: BackupPhotos = {};
+  // One at a time, so a long list of photos isn't all read at once
+  for (const visit of visits) {
+    if (!visit.hasPhoto) continue;
+    const photo = await readPhotoBase64(visit.id);
+    if (photo) photos[visit.id] = photo;
+  }
+  return photos;
+};
+
 const backupFileName = (date: string) => `spoons-collector-backup-${date}.json`;
 
 /**
@@ -105,6 +136,7 @@ export const exportBackup = async (
   crawl: Crawl | null,
   today: string,
   crawlHistory: CompletedCrawl[] = [],
+  photos: BackupPhotos = {},
 ): Promise<boolean> => {
   const backup: BackupFile = {
     app: BACKUP_APP,
@@ -113,6 +145,7 @@ export const exportBackup = async (
     visits,
     crawl,
     crawlHistory,
+    photos,
   };
   const text = JSON.stringify(backup, null, 2);
   const fileName = backupFileName(today);

@@ -16,7 +16,24 @@ describe('parseBackup', () => {
       visits: withNotes,
       crawl,
       crawlHistory,
+      photos: {},
     });
+  });
+
+  it("reads a version 4 backup's photos, keeping only its own visits'", () => {
+    const backup = parseBackup(
+      file({
+        app: 'spoons_collector',
+        version: 4,
+        visits,
+        photos: { [visits[0].id]: 'anBlZw==', [visits[1].id]: 42, 'someone-else': 'anBlZw==' },
+      }),
+    );
+    expect(backup.photos).toEqual({ [visits[0].id]: 'anBlZw==' });
+  });
+
+  it('copes with photos that are not a list of photos', () => {
+    expect(parseBackup(file({ app: 'spoons_collector', version: 4, visits, photos: 'x' })).photos).toEqual({});
   });
 
   it('still reads version 2 and 1 backups', () => {
@@ -25,11 +42,13 @@ describe('parseBackup', () => {
       visits,
       crawl,
       crawlHistory: [],
+      photos: {},
     });
     expect(parseBackup(file({ app: 'spoons_collector', version: 1, visits }))).toEqual({
       visits,
       crawl: null,
       crawlHistory: [],
+      photos: {},
     });
   });
 

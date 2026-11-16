@@ -61,4 +61,7 @@ echo
 echo "==> Done: $apk ($(du -h "$apk" | cut -f1 | xargs))"
 if [[ "$kind" == own ]]; then
   echo "    Includes Wetherspoon's photos: keep this one to yourself."
+else
+  echo "    To publish it (the app tells its users about a new version):"
+  echo "    gh release create v$version $apk --title \"Spoons Collector $version\""
 fi

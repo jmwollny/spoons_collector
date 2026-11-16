@@ -21,6 +21,8 @@ import { Map } from './components/Map';
 import { Visits } from './components/Visits';
 import { ConfirmDialog } from './components/ConfirmDialog';
 import { BackupReminder } from './components/BackupReminder';
+import { UpdateNotice } from './components/UpdateNotice';
+import { useAppUpdate } from './appUpdate';
 import { VisitHistory } from './components/VisitHistory';
 import { VisitFormModal } from './components/VisitFormModal';
 import { CardViewer } from './components/CardViewer';
@@ -140,6 +142,7 @@ function App({ data }: { data: PubData }) {
   const trail = useActiveTrail(selectedId, filters.filteredLocations, pubsById, crawl, selectAnyPub);
 
   const backup = useBackup(visits, crawl.crawl, today, crawl.history);
+  const appUpdate = useAppUpdate(today);
 
   // ---- Actions ----
   const openCard = (pubId: number) => {
@@ -191,6 +194,10 @@ function App({ data }: { data: PubData }) {
           onToggleLiveLocation={live.toggle}
         />
       </header>
+
+      {appUpdate.update && !isCrawlMode && (
+        <UpdateNotice update={appUpdate.update} onDismiss={appUpdate.dismiss} />
+      )}
 
       {backup.isReminderDue && !isCrawlMode && (
         <BackupReminder backup={backup} visitCount={visits.length} today={today} />

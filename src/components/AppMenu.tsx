@@ -104,6 +104,17 @@ export const AppMenu = (props: AppMenuProps) => {
           <button type="button" onClick={chooseFile}>
             📂 Restore from backup
           </button>
+          <button
+            type="button"
+            role="switch"
+            className={`app-menu-switch ${backup.includePhotos ? 'is-on' : ''}`}
+            aria-checked={backup.includePhotos}
+            onClick={backup.toggleIncludePhotos}
+          >
+            <span>📷 Photos in backups</span>
+            <span className="app-menu-switch-state">{backup.includePhotos ? 'On' : 'Off'}</span>
+          </button>
+          <p className="app-menu-hint">Keeps your visit photos safe too. Each adds about 0.3 MB.</p>
           <p className="app-menu-note">
             Visits are only saved on this device. Last backup:{' '}
             <strong>{backup.lastBackup ? formatDate(backup.lastBackup) : 'never'}</strong>

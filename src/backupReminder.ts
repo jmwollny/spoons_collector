@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { VisitEntry } from './types';
 import type { Crawl } from './crawl';
-import { exportBackup } from './backup';
+import { collectPhotos, exportBackup } from './backup';
 import type { CompletedCrawl } from './crawlScore';
 
 // When this device last made a backup, and a fingerprint of the visits it
@@ -11,6 +11,8 @@ const lastBackupKey = 'spoons-collector-last-backup';
 const lastBackupSignatureKey = 'spoons-collector-last-backup-signature';
 // "Later" puts the reminder off until this date
 const snoozeKey = 'spoons-collector-backup-snoozed-until';
+// Whether backups include visits' photos: on unless the user turns it off
+const includePhotosKey = 'spoons-collector-backup-photos';
 
 // Remind once the last backup is this old and visits have changed since
 export const REMIND_AFTER_DAYS = 30;
@@ -99,10 +101,17 @@ export const useBackup = (
     signature: read(lastBackupSignatureKey),
   }));
   const [snoozedUntil, setSnoozedUntil] = useState(() => read(snoozeKey));
+  const [includePhotos, setIncludePhotos] = useState(() => read(includePhotosKey) !== 'off');
+
+  const toggleIncludePhotos = () => {
+    write(includePhotosKey, includePhotos ? 'off' : 'on');
+    setIncludePhotos(!includePhotos);
+  };
 
   /** @returns false if the user closed the share sheet without saving */
   const backUp = async () => {
-    const saved = await exportBackup(visits, crawl, today, crawlHistory);
+    const photos = includePhotos ? await collectPhotos(visits) : {};
+    const saved = await exportBackup(visits, crawl, today, crawlHistory, photos);
     if (saved) {
       const signature = visitsSignature(visits);
       write(lastBackupKey, today);
@@ -123,6 +132,8 @@ export const useBackup = (
     backUp,
     isReminderDue: isBackupReminderDue(visits, record, today, snoozedUntil),
     snooze,
+    includePhotos,
+    toggleIncludePhotos,
   };
 };
 

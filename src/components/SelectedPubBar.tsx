@@ -4,7 +4,7 @@ import type { PubTrail } from '../trail';
 import { useSwipe } from '../hooks/useSwipe';
 import SpoonCard from './SpoonCard';
 import { PubBarInfo } from './sheet/PubBarInfo';
-import { pubPhotoUrl } from '../pubPhoto';
+import { usePubPhotoUrl } from '../pubPhoto';
 
 type SelectedPubBarProps = {
   pub: PubLocation;
@@ -26,6 +26,7 @@ type SelectedPubBarProps = {
  */
 export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: SelectedPubBarProps) => {
   const [isOpen, setIsOpen] = useState(false);
+  const photoUrl = usePubPhotoUrl(pub);
   const { touchHandlers, wasSwipe } = useSwipe(
     {
       onLeft: trail.goNext,
@@ -105,7 +106,7 @@ export const SelectedPubBar = ({ pub, visitCount, date, trail, onOpen }: Selecte
             visitCount={visitCount}
             date={date}
             compact={true}
-            photoUrl={pubPhotoUrl(pub)}
+            photoUrl={photoUrl}
             nearestMiles={pub.nearestNeighborMiles}
             secondMiles={pub.secondNeighborMiles}
             website={pub.website}
