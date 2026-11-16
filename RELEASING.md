@@ -40,7 +40,15 @@ then add `SPOONS_RELEASE_STORE_FILE`, `SPOONS_RELEASE_STORE_PASSWORD`,
 
 1. Bump `versionCode` (by 1) and `versionName` in `android/app/build.gradle`.
    A phone won't install an update with the same or a lower `versionCode`.
-2. Build:
+2. Build, all in one go:
+
+   ```bash
+   npm run apk            # shareable: photos load from Wetherspoon's site
+   npm run apk -- --own   # your own: photos included
+   ```
+
+   This puts the APK in `apk/` (git-ignored), named by version and kind,
+   e.g. `apk/spoons-collector-1.1-shareable.apk`. Or, step by step:
 
    ```bash
    npm run build
