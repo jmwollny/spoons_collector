@@ -8,6 +8,12 @@ Built with React, Leaflet and Vite, with an Android build via Capacitor. Visits 
 
 Get the Android app from the [latest release](https://github.com/jmwollny/spoons_collector/releases/latest): open that page on your phone, tap the `.apk` file and allow Android to install it. The app tells you when a newer version is out.
 
+<p>
+  <img src="docs/screenshots/map.png" alt="The map, with a pub's card open" width="240">
+  <img src="docs/screenshots/cards.png" alt="A pub's card in the Cards tab" width="240">
+  <img src="docs/screenshots/stats.png" alt="The Stats tab: visits per month and records" width="240">
+</p>
+
 ## Getting started
 
 The repository holds the code and the OpenStreetMap-derived pub list, but **not** the pub photos or history text. Those come from the Wetherspoon website, whose terms don't allow republishing them, so each copy of the project downloads its own (see [Data sources and licences](#data-sources-and-licences)). The app won't build until you have done this once.
